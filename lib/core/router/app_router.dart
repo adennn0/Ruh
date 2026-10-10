@@ -6,6 +6,10 @@ import '../../features/home/home_screen.dart';
 import '../../features/journal/journal_screen.dart';
 import '../../features/guide/guide_screen.dart';
 import '../../features/discover/discover_screen.dart';
+import '../../features/discover/compatibility_screen.dart';
+import '../../features/discover/crystal_screen.dart';
+import '../../features/discover/spirit_animal_screen.dart';
+import '../../features/discover/moon_calendar_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile/notification_settings_screen.dart';
 import '../../features/time_moment/time_moment_screen.dart';
@@ -28,6 +32,11 @@ class AppRoutes {
   static const notificationSettings = '/profile/notifications';
   static const timeMoment = '/time-moment';
   static const breath = '/breath';
+  // Phase 4
+  static const compatibility = '/discover/compatibility';
+  static const crystal = '/discover/crystal';
+  static const spiritAnimal = '/discover/spirit-animal';
+  static const moonCalendar = '/discover/moon-calendar';
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -55,6 +64,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.breath,
         builder: (context, state) => const BreathScreen(),
+      ),
+      // Phase 4 — Keşfet alt ekranları
+      GoRoute(
+        path: AppRoutes.compatibility,
+        builder: (context, state) => const CompatibilityScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.crystal,
+        builder: (context, state) => const CrystalScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.spiritAnimal,
+        builder: (context, state) => const SpiritAnimalScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.moonCalendar,
+        builder: (context, state) => const MoonCalendarScreen(),
       ),
       // 5 sekmeli ana yapı
       StatefulShellRoute.indexedStack(

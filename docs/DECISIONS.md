@@ -47,3 +47,18 @@ enums.dart'taki StreakActivity (value object) ile cakisma onlemek icin streak_re
 
 ### D-14 · EmptyStateWidget API
 title (required) + subtitle (optional). message parametresi yok — bu ayrim tum journale screen'lerde uygulanmali.
+
+### D-15 · Uyumluluk skoru hesaplama (Phase 4)
+Deterministik: element iliskisi baz skor (52-88) + nitelik duzeltmesi (-3..+4), ayni burc=78 sabit, 40-95 arasi sikistrima. Simetrik: calculate(a,b)==calculate(b,a). 78 benzersiz cift icin orijinal Turkce yorum.
+
+### D-16 · Kayitli kisiler limiti
+Ucretsiz 3, premium sinirsiz. SavedPersonTable'da saklanir, SavedPersonDao ile erisim. Gizlilik: yalnizca cihazda, paylasim kartinda kisi bilgisi yalnizca acik izinle.
+
+### D-17 · Dogal tas eslemesi
+12 burc icin deterministik 1:1 esleme. Saglik/sifa iddiasi YOK, sembolik cerceve notu zorunlu.
+
+### D-18 · Ruh hayvani zaman dilimi
+12 burc x 4 donem (Safak/Gun/Aksam/Gece). Saat bilinmiyorsa ana form gosterilir, nedeni aciklanir.
+
+### D-19 · Ay takvimi yaklasik hesaplama
+Sinodik ay dongusu (29.530588853 gun), referans yeni ay 2000-01-06 18:14 UTC. ~yaklasik notu her zaman gorunur.

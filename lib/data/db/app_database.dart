@@ -10,6 +10,7 @@ import 'daos/journal_dao.dart';
 import 'daos/streak_dao.dart';
 import 'daos/daily_content_dao.dart';
 import 'daos/favorites_dao.dart';
+import 'daos/saved_person_dao.dart';
 
 part 'app_database.g.dart';
 
@@ -38,6 +39,7 @@ part 'app_database.g.dart';
     StreakDao,
     DailyContentDao,
     FavoritesDao,
+    SavedPersonDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -91,4 +93,8 @@ final dailyContentDaoProvider = Provider<DailyContentDao>((ref) {
 
 final favoritesDaoProvider = Provider<FavoritesDao>((ref) {
   return ref.watch(appDatabaseProvider).favoritesDao;
+});
+
+final savedPersonDaoProvider = Provider<SavedPersonDao>((ref) {
+  return ref.watch(appDatabaseProvider).savedPersonDao;
 });
