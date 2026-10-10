@@ -8,6 +8,8 @@ import '../../features/guide/guide_screen.dart';
 import '../../features/discover/discover_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile/notification_settings_screen.dart';
+import '../../features/time_moment/time_moment_screen.dart';
+import '../../features/breath/breath_screen.dart';
 import '../../widgets/scaffold_with_nav_bar.dart';
 import '../../data/repositories/user_profile_repository.dart';
 import '../theme/theme.dart';
@@ -24,6 +26,8 @@ class AppRoutes {
   static const discover = '/discover';
   static const profile = '/profile';
   static const notificationSettings = '/profile/notifications';
+  static const timeMoment = '/time-moment';
+  static const breath = '/breath';
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -43,6 +47,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.notificationSettings,
         builder: (context, state) => const NotificationSettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.timeMoment,
+        builder: (context, state) => const TimeMomentScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.breath,
+        builder: (context, state) => const BreathScreen(),
       ),
       // 5 sekmeli ana yapı
       StatefulShellRoute.indexedStack(

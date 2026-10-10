@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/theme.dart';
 import '../../data/repositories/user_profile_repository.dart';
 import '../../data/repositories/streak_repository.dart';
@@ -398,35 +400,38 @@ class _TimeMomentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CosmicCard(
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              gradient: tokens.primaryGradient,
-              borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () => context.push(AppRoutes.timeMoment),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                gradient: tokens.primaryGradient,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.access_time_rounded,
+                  color: Colors.white, size: 22),
             ),
-            child: const Icon(Icons.access_time_rounded,
-                color: Colors.white, size: 22),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Saat Anı', style: AppTextStyles.titleSmall(tokens)),
-                Text(
-                  '11:11 · 22:22 gibi saatlerde bir an dur',
-                  style: AppTextStyles.caption(tokens).copyWith(
-                    color: tokens.onSurfaceMuted,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Saat Anı', style: AppTextStyles.titleSmall(tokens)),
+                  Text(
+                    '11:11 · 22:22 gibi saatlerde bir an dur',
+                    style: AppTextStyles.caption(tokens).copyWith(
+                      color: tokens.onSurfaceMuted,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Icon(Icons.chevron_right, color: tokens.onSurfaceMuted),
-        ],
+            Icon(Icons.chevron_right, color: tokens.onSurfaceMuted),
+          ],
+        ),
       ),
     );
   }
@@ -497,10 +502,18 @@ class _QuickActionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = [
-      (PhosphorIcons.target(PhosphorIconsStyle.light), 'Niyet\nOluştur'),
-      (PhosphorIcons.pencilSimple(PhosphorIconsStyle.light), 'Günlük\nYaz'),
-      (PhosphorIcons.wind(PhosphorIconsStyle.light), 'Nefes\nMolası'),
-      (PhosphorIcons.clock(PhosphorIconsStyle.light), 'Saat\nAnı'),
+      (PhosphorIcons.target(PhosphorIconsStyle.light), 'Niyet\nOluştur', () {
+        context.go(AppRoutes.journal, extra: {'openIntentionSheet': true});
+      }),
+      (PhosphorIcons.pencilSimple(PhosphorIconsStyle.light), 'Günlük\nYaz', () {
+        context.go(AppRoutes.journal);
+      }),
+      (PhosphorIcons.wind(PhosphorIconsStyle.light), 'Nefes\nMolası', () {
+        context.push(AppRoutes.breath);
+      }),
+      (PhosphorIcons.clock(PhosphorIconsStyle.light), 'Saat\nAnı', () {
+        context.push(AppRoutes.timeMoment);
+      }),
     ];
 
     return Row(
@@ -513,7 +526,7 @@ class _QuickActionsRow extends StatelessWidget {
                   icon: a.$1,
                   label: a.$2,
                   tokens: tokens,
-                  onPressed: () {},
+                  onPressed: a.$3,
                 ),
               ),
             ),
