@@ -1,0 +1,5 @@
+package com.ruhunparliyor.ruhun_parliyor
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()

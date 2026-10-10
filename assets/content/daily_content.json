@@ -1,0 +1,304 @@
+{
+  "_comment": "Günlük içerik kütüphanesi — MVP: 12 burç × 4 ton × min 7 mesaj. Aşama 3'te tamamlanacak.",
+  "_schema": {
+    "id": "string — benzersiz, burç+ton+sıra (ör: aries_soft_001)",
+    "sign": "string — burç adı (aries, taurus, ...)",
+    "tone": "string — ton (soft, strong, spiritual, rational)",
+    "message": "string — günlük mesaj, max ~200 karakter, Türkçe",
+    "affirmation": "string — olumlama, max ~100 karakter",
+    "reflectionPrompt": "string? — yansıma sorusu, isteğe bağlı",
+    "tags": ["string"]
+  },
+  "_lint_rules": {
+    "forbidden_patterns": [
+      "kesinlikle gerçekleşecek",
+      "iyileştirir",
+      "hastalığa iyi gelir",
+      "tedavi eder",
+      "uğursuz",
+      "kötü şey olacak",
+      "şifa",
+      "garanti",
+      "kaderinde var",
+      "kaçınılmaz"
+    ],
+    "max_message_length": 300,
+    "max_affirmation_length": 150,
+    "required_fields": ["id", "sign", "tone", "message", "affirmation"],
+    "note": "İçerik lint testi Aşama 3'te test/content_lint_test.dart'ta çalışır"
+  },
+  "messages": {
+    "aries": {
+      "soft": [
+        {
+          "id": "aries_soft_001",
+          "sign": "aries",
+          "tone": "soft",
+          "message": "Koç enerjisi seni bugün bir adım atmaya davet ediyor. Küçük de olsa, o adım sana ait.",
+          "affirmation": "Kendime karşı nazif olduğumda en güçlü adımlarımı atarım.",
+          "reflectionPrompt": "Bugün kendine nazikçe sunabileceğin küçük bir şey ne?",
+          "tags": ["öz-şefkat", "başlangıç"]
+        },
+        {
+          "id": "aries_soft_002",
+          "sign": "aries",
+          "tone": "soft",
+          "message": "Ateş elementi sana enerji verir; bugün bu enerjiyi içinde tutmak da bir güç.",
+          "affirmation": "Dinlendiğimde de büyürüm.",
+          "reflectionPrompt": "Hangi küçük jestler seni bugün rahatlatır?",
+          "tags": ["dinlenme", "farkındalık"]
+        },
+        {
+          "id": "aries_soft_003",
+          "sign": "aries",
+          "tone": "soft",
+          "message": "Öncü doğan seninle birlikte, bugün hangi kapıyı aralamak ister?",
+          "affirmation": "Her başlangıç bir cesaret anıdır ve ben buna hazırım.",
+          "reflectionPrompt": "Bugün açmak istediğin bir kapı var mı?",
+          "tags": ["cesaret", "öncülük"]
+        },
+        {
+          "id": "aries_soft_004",
+          "sign": "aries",
+          "tone": "soft",
+          "message": "Bazen en güçlü eylem, sesi kısıp kendini dinlemektir.",
+          "affirmation": "İçimdeki sesi duyduğumda yönümü bulurum.",
+          "reflectionPrompt": "Bugün hangi iç sesin peşinden gitmek ister misin?",
+          "tags": ["iç ses", "dinginlik"]
+        },
+        {
+          "id": "aries_soft_005",
+          "sign": "aries",
+          "tone": "soft",
+          "message": "Mars'ın enerjisi zaman zaman yorgunluk getirir. Bu da yolculuğun bir parçası.",
+          "affirmation": "Yorgunluğumu kabul etmek beni zayıf değil, bilinçli kılar.",
+          "reflectionPrompt": "Bugün kendine nasıl bir mola verebilirsin?",
+          "tags": ["öz-kabul", "yenilenme"]
+        },
+        {
+          "id": "aries_soft_006",
+          "sign": "aries",
+          "tone": "soft",
+          "message": "Bugün, sabahın ilk ışığı gibi, yeni bir sayfa açılıyor.",
+          "affirmation": "Geçmiş benim için bir rehber, bir kader değil.",
+          "reflectionPrompt": "Bu yeni sayfada ilk satır ne olsun?",
+          "tags": ["yenilenme", "umut"]
+        },
+        {
+          "id": "aries_soft_007",
+          "sign": "aries",
+          "tone": "soft",
+          "message": "Hız ve kararlılık senin doğanda; ama bugün belki de sabır bir hediye.",
+          "affirmation": "Sabrettiğimde de ilerlerim.",
+          "reflectionPrompt": "Bugün sabırla yaklaşabileceğin bir durum var mı?",
+          "tags": ["sabır", "büyüme"]
+        }
+      ],
+      "strong": [
+        {
+          "id": "aries_strong_001",
+          "sign": "aries",
+          "tone": "strong",
+          "message": "Bugün bir hedef belirle. Küçük ama net. Sonra uygula.",
+          "affirmation": "Odaklandığımda ilerlerim.",
+          "reflectionPrompt": "Bugün tamamlayacağın tek şey ne?",
+          "tags": ["odak", "eylem"]
+        },
+        {
+          "id": "aries_strong_002",
+          "sign": "aries",
+          "tone": "strong",
+          "message": "Koç enerjisi harekete geçer. Bugün bekleme, başla.",
+          "affirmation": "İlk adım en önemli adımdır ve ben atarım.",
+          "reflectionPrompt": "Hangi görevi bugün başlatmayı sürekli erteliyorsun?",
+          "tags": ["eylem", "liderlik"]
+        },
+        {
+          "id": "aries_strong_003",
+          "sign": "aries",
+          "tone": "strong",
+          "message": "Engel görmek için değil, aşmak için doğdun.",
+          "affirmation": "Güçlüğü görür, yolumu bulurum.",
+          "reflectionPrompt": "Önündeki engeli küçük adımlarla nasıl aşabilirsin?",
+          "tags": ["dayanıklılık", "çözüm"]
+        },
+        {
+          "id": "aries_strong_004",
+          "sign": "aries",
+          "tone": "strong",
+          "message": "Mars sana enerji verir. Bu enerjiyi doğru yöne kanalize et.",
+          "affirmation": "Enerjimi bilinçli kullandığımda sonuç alırım.",
+          "reflectionPrompt": "Bugün enerjini nereye yönlendirmeyi seçiyorsun?",
+          "tags": ["enerji", "yönelim"]
+        },
+        {
+          "id": "aries_strong_005",
+          "sign": "aries",
+          "tone": "strong",
+          "message": "Karar ver, uygula, sonuca bak. Tekrar et.",
+          "affirmation": "Kararlarımın arkasında durduğumda öğrenirim.",
+          "reflectionPrompt": "Bugün vermen gereken bir karar var mı?",
+          "tags": ["karar", "sorumluluk"]
+        },
+        {
+          "id": "aries_strong_006",
+          "sign": "aries",
+          "tone": "strong",
+          "message": "Liderlik, önce kendini yönetmekle başlar.",
+          "affirmation": "Kendimi yönettikçe çevreme ilham veririm.",
+          "reflectionPrompt": "Bugün kendini yönetmek için ne yapabilirsin?",
+          "tags": ["liderlik", "özgün"]
+        },
+        {
+          "id": "aries_strong_007",
+          "sign": "aries",
+          "tone": "strong",
+          "message": "Cesaretini bul. Bugün bir adım fazla at.",
+          "affirmation": "Cesaret, korkunun yokluğu değil; rağmen hareket etmektir.",
+          "reflectionPrompt": "Bugün seni zorlayan ama yapmak istediğin bir şey nedir?",
+          "tags": ["cesaret", "büyüme"]
+        }
+      ],
+      "spiritual": [
+        {
+          "id": "aries_spiritual_001",
+          "sign": "aries",
+          "tone": "spiritual",
+          "message": "Ateş elementi seni bu sabah içten aydınlatıyor. Niyetini o ışıkla belirle.",
+          "affirmation": "İçimdeki ışık yolumu gösterir.",
+          "reflectionPrompt": "Bugün içindeki ateşin sana ne fısıldıyor?",
+          "tags": ["niyet", "farkındalık"]
+        },
+        {
+          "id": "aries_spiritual_002",
+          "sign": "aries",
+          "tone": "spiritual",
+          "message": "Öncü bir ruh olarak, bugün hangi dönüşüme kapı aralıyorsun?",
+          "affirmation": "Dönüşüm için doğduğumu hissediyorum.",
+          "reflectionPrompt": "Bugün farkında olarak attığın küçük bir adım hangisi?",
+          "tags": ["dönüşüm", "öncülük"]
+        },
+        {
+          "id": "aries_spiritual_003",
+          "sign": "aries",
+          "tone": "spiritual",
+          "message": "Mars'ın gücü sana akar; bu enerjiyi bir niyet tohumuna dönüştür.",
+          "affirmation": "Evrenin enerjisini bilinçle yönlendiririm.",
+          "reflectionPrompt": "Bugün hangi niyeti toprağa eklemek istiyorsun?",
+          "tags": ["niyet", "sembolik"]
+        },
+        {
+          "id": "aries_spiritual_004",
+          "sign": "aries",
+          "tone": "spiritual",
+          "message": "Sezgin sana bir şey söylüyor bu sabah. Dur ve dinle.",
+          "affirmation": "Sezgime güvenirim; o benim en derin bilgeliğimdir.",
+          "reflectionPrompt": "Sessizlikte ne duyuyorsun?",
+          "tags": ["sezgi", "dinginlik"]
+        },
+        {
+          "id": "aries_spiritual_005",
+          "sign": "aries",
+          "tone": "spiritual",
+          "message": "Spiritüel yolculuğun bazen hız değil, derinlik ister.",
+          "affirmation": "Derinleştikçe büyürüm.",
+          "reflectionPrompt": "Bugün daha derin bakabildiğin bir an hangisi?",
+          "tags": ["derinlik", "farkındalık"]
+        },
+        {
+          "id": "aries_spiritual_006",
+          "sign": "aries",
+          "tone": "spiritual",
+          "message": "Koç'un cesareti, bugün içsel bir kapıya dokunmak için bir davet.",
+          "affirmation": "İçsel cesaret beni aydınlatır.",
+          "reflectionPrompt": "Kendi içinde hangi kapıyı açmaya hazır hissediyorsun?",
+          "tags": ["içsel yolculuk", "cesaret"]
+        },
+        {
+          "id": "aries_spiritual_007",
+          "sign": "aries",
+          "tone": "spiritual",
+          "message": "Bu gün, evrenin sana sunduğu bir an; onu bilinçle karşıla.",
+          "affirmation": "Her an benim için bir fırsattır ve ben hazırım.",
+          "reflectionPrompt": "Bu anı tam olarak yaşamak için ne gerekiyor?",
+          "tags": ["farkındalık", "şimdiki an"]
+        }
+      ],
+      "rational": [
+        {
+          "id": "aries_rational_001",
+          "sign": "aries",
+          "tone": "rational",
+          "message": "Bugünün enerjisini değerlendirmek için bir dakika ayır: ne yapabilirsin, ne bekleyebilirsin?",
+          "affirmation": "Gerçekçi hedefler belirlediğimde daha etkili ilerliyorum.",
+          "reflectionPrompt": "Bugün kontrolünde olan ve olmayan şeyler neler?",
+          "tags": ["gerçekçilik", "değerlendirme"]
+        },
+        {
+          "id": "aries_rational_002",
+          "sign": "aries",
+          "tone": "rational",
+          "message": "Koç enerjisi bazen hızlı kararlar doğurur. Bugün bir adım geri çekip bak.",
+          "affirmation": "Yavaşladığımda daha iyi kararlar alırım.",
+          "reflectionPrompt": "Bugün tekrar düşünmek istediğin bir karar var mı?",
+          "tags": ["analiz", "karar"]
+        },
+        {
+          "id": "aries_rational_003",
+          "sign": "aries",
+          "tone": "rational",
+          "message": "Duygularını gözlemle; onlar sana neyin önemli olduğunu söyler.",
+          "affirmation": "Duygularım veri, onları dinler ve değerlendiririm.",
+          "reflectionPrompt": "Bugün hangi duygu en belirgin? Ne söylüyor?",
+          "tags": ["duygusal farkındalık", "analiz"]
+        },
+        {
+          "id": "aries_rational_004",
+          "sign": "aries",
+          "tone": "rational",
+          "message": "Bir hedef belirlemek güzel; onu ölçülebilir kılmak daha güçlü.",
+          "affirmation": "Somut adımlar atmak beni hedefime yaklaştırır.",
+          "reflectionPrompt": "Bugünkü hedefinizi nasıl ölçebilirsin?",
+          "tags": ["hedef", "somut"]
+        },
+        {
+          "id": "aries_rational_005",
+          "sign": "aries",
+          "tone": "rational",
+          "message": "Enerji tükeniyorsa sebebe bak. Çözüm genelde orada.",
+          "affirmation": "Sorunun kaynağını anladığımda çözüm kolaylaşır.",
+          "reflectionPrompt": "Seni en çok ne yoruyor ve neden?",
+          "tags": ["analiz", "problem çözme"]
+        },
+        {
+          "id": "aries_rational_006",
+          "sign": "aries",
+          "tone": "rational",
+          "message": "Öncü olmak sorumluluk ister. Bugün bu sorumluluğu nasıl taşıyacaksın?",
+          "affirmation": "Sorumluluğumu farkında şekilde taşırım.",
+          "reflectionPrompt": "Bu hafta aldığın sorumluluklar seni nasıl etkiliyor?",
+          "tags": ["sorumluluk", "öz-yönetim"]
+        },
+        {
+          "id": "aries_rational_007",
+          "sign": "aries",
+          "tone": "rational",
+          "message": "Değişim analizle başlar. Bugün bir şeyi farklı gözlemle.",
+          "affirmation": "Farklı bakış açıları beni büyütür.",
+          "reflectionPrompt": "Bugün alışkanlık dışı gözlemlediğin bir şey ne?",
+          "tags": ["bakış açısı", "büyüme"]
+        }
+      ]
+    }
+  },
+  "affirmations": {
+    "_comment": "Bağımsız olumlamalar — generateAffirmation için. Aşama 3'te tüm 12 burç × 4 ton doldurulacak.",
+    "aries": {
+      "soft": ["Kendime karşı nazik olduğumda en güçlü adımlarımı atarım.", "Her adım değerlidir, küçük olsa bile."],
+      "strong": ["Odaklandığımda ilerlerim.", "İlk adım en önemli adımdır ve ben atarım."],
+      "spiritual": ["İçimdeki ışık yolumu gösterir.", "Sezgime güvenirim."],
+      "rational": ["Gerçekçi hedefler belirlediğimde daha etkili ilerliyorum.", "Duygularım veri, onları dinler ve değerlendiririm."]
+    }
+  },
+  "_placeholder_note": "Aşama 3'te tüm 12 burç için 7+ mesaj ve olumlama eklenecek. Bu dosya içerik lint testinden geçecek."
+}
