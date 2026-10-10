@@ -12,7 +12,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     // In-memory database for tests
-    final db = AppDatabase(NativeDatabase.memory());
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
 
     await tester.pumpWidget(
       ProviderScope(

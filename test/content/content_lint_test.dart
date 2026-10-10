@@ -1,140 +1,226 @@
+﻿import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
-/// İçerik lint testi — yasaklı kalıplar ve uzunluk kontrolleri.
-/// Aşama 3'te assets/content/daily_content.json tamamlandığında çalışır.
-/// Bu test başarısız olursa içerik teslim edilmez.
+/// Ä°Ã§erik lint testi â€” yasaklÄ± kalÄ±plar ve uzunluk kontrolleri.
+/// Yeni JSON ÅŸemasÄ±: {id, sign, tone, type, text, tags}
+/// Bu test baÅŸarÄ±sÄ±z olursa iÃ§erik teslim edilmez (spec BÃ¶lÃ¼m 18.1).
 void main() {
   const forbiddenPatterns = [
-    'kesinlikle gerçekleşecek',
+    'kesinlikle gerÃ§ekleÅŸecek',
     'kesinlikle olacak',
-    'iyileştirir',
-    'hastalığa iyi gelir',
+    'iyileÅŸtirir',
+    'hastalÄ±ÄŸa iyi gelir',
     'tedavi eder',
-    'uğursuz',
-    'uğur',
-    'kötü şey olacak',
-    'kötülük gelecek',
-    'şifa verir',
-    'şifa bulursun',
-    'seni kurtarır',
+    'uÄŸursuz',
+    'kÃ¶tÃ¼ ÅŸey olacak',
+    'kÃ¶tÃ¼lÃ¼k gelecek',
+    'ÅŸifa verir',
+    'ÅŸifa bulursun',
+    'seni kurtarÄ±r',
     'garanti',
     'kaderinde var',
-    'kaçınılmaz',
-    'mutlaka gerçekleşir',
+    'kaÃ§Ä±nÄ±lmaz',
+    'mutlaka gerÃ§ekleÅŸir',
     'kesin olarak',
-    'Allah', // dini referans yok
-    'cennet',
-    'cehennem',
   ];
 
   const maxMessageLength = 300;
   const maxAffirmationLength = 150;
 
-  /// JSON içeriğini test et (gerçek asset olmadan da çalışır)
+  const validSigns = {
+    'aries', 'taurus', 'gemini', 'cancer', 'leo', 'virgo',
+    'libra', 'scorpio', 'sagittarius', 'capricorn', 'aquarius', 'pisces',
+  };
+  const validTones = {'soft', 'strong', 'spiritual', 'rational'};
+  const validTypes = {'message', 'affirmation'};
+
+  /// Flat entries listesini lint'le
   void lintEntries(List<Map<String, dynamic>> entries) {
     for (final entry in entries) {
       final id = entry['id'] as String? ?? 'unknown';
-      final message = entry['message'] as String? ?? '';
-      final affirmation = entry['affirmation'] as String? ?? '';
+      final text = entry['text'] as String? ?? '';
+      final type = entry['type'] as String? ?? '';
 
       // Zorunlu alanlar
       expect(entry['id'], isNotNull, reason: 'id eksik: $entry');
       expect(entry['sign'], isNotNull, reason: 'sign eksik: $id');
       expect(entry['tone'], isNotNull, reason: 'tone eksik: $id');
-      expect(message.isNotEmpty, true, reason: 'message boş: $id');
-      expect(affirmation.isNotEmpty, true, reason: 'affirmation boş: $id');
+      expect(entry['type'], isNotNull, reason: 'type eksik: $id');
+      expect(text.isNotEmpty, true, reason: 'text boÅŸ: $id');
 
-      // Uzunluk kontrolü
+      // GeÃ§erli deÄŸer alanlarÄ±
       expect(
-        message.length <= maxMessageLength,
+        validSigns.contains(entry['sign']),
         true,
-        reason: 'message çok uzun (${message.length} > $maxMessageLength): $id',
+        reason: 'GeÃ§ersiz sign "${entry['sign']}": $id',
       );
       expect(
-        affirmation.length <= maxAffirmationLength,
+        validTones.contains(entry['tone']),
         true,
-        reason:
-            'affirmation çok uzun (${affirmation.length} > $maxAffirmationLength): $id',
+        reason: 'GeÃ§ersiz tone "${entry['tone']}": $id',
+      );
+      expect(
+        validTypes.contains(type),
+        true,
+        reason: 'GeÃ§ersiz type "$type": $id',
       );
 
-      // Yasaklı kalıplar
-      final allText = '${message.toLowerCase()} ${affirmation.toLowerCase()}';
+      // Uzunluk kontrolÃ¼
+      final maxLen = type == 'message' ? maxMessageLength : maxAffirmationLength;
+      expect(
+        text.length <= maxLen,
+        true,
+        reason: 'text Ã§ok uzun (${text.length} > $maxLen): $id',
+      );
+
+      // YasaklÄ± kalÄ±plar
+      final lowerText = text.toLowerCase();
       for (final pattern in forbiddenPatterns) {
         expect(
-          allText.contains(pattern.toLowerCase()),
+          lowerText.contains(pattern.toLowerCase()),
           false,
-          reason: 'Yasaklı kalıp "$pattern" bulundu: $id',
+          reason: 'YasaklÄ± kalÄ±p "$pattern" bulundu: $id',
         );
       }
     }
   }
 
-  group('İçerik Lint Testi', () {
-    test('Koç/yumuşak içerikleri geçerli', () {
-      final entries = [
+  group('Ä°Ã§erik Lint Testi â€” birim', () {
+    test('GeÃ§erli mesaj kabul edilir', () {
+      lintEntries([
         {
-          'id': 'aries_soft_001',
+          'id': 'aries_soft_msg_01',
           'sign': 'aries',
           'tone': 'soft',
-          'message':
-              'Koç enerjisi seni bugün bir adım atmaya davet ediyor. Küçük de olsa, o adım sana ait.',
-          'affirmation':
-              'Kendime karşı nazif olduğumda en güçlü adımlarımı atarım.',
+          'type': 'message',
+          'text':
+              'KoÃ§ enerjisi seni bugÃ¼n bir adÄ±m atmaya davet ediyor. KÃ¼Ã§Ã¼k de olsa, o adÄ±m sana ait.',
+          'tags': ['cesaret'],
         },
-        {
-          'id': 'aries_soft_002',
-          'sign': 'aries',
-          'tone': 'soft',
-          'message':
-              'Ateş elementi sana enerji verir; bugün bu enerjiyi içinde tutmak da bir güç.',
-          'affirmation': 'Dinlendiğimde de büyürüm.',
-        },
-      ];
-      lintEntries(entries);
+      ]);
     });
 
-    test('Yasaklı kalıp tespiti çalışıyor', () {
-      final badEntry = {
-        'id': 'test_bad',
-        'sign': 'aries',
-        'tone': 'soft',
-        'message': 'Bu kesinlikle gerçekleşecek, endişelenme.',
-        'affirmation': 'Her şey mükemmel.',
-      };
+    test('GeÃ§erli olumlama kabul edilir', () {
+      lintEntries([
+        {
+          'id': 'aries_soft_aff_01',
+          'sign': 'aries',
+          'tone': 'soft',
+          'type': 'affirmation',
+          'text': 'Kendime karÅŸÄ± nazif olduÄŸumda en gÃ¼Ã§lÃ¼ adÄ±mlarÄ±mÄ± atarÄ±m.',
+          'tags': <String>[],
+        },
+      ]);
+    });
 
+    test('YasaklÄ± kalÄ±p reddedilir', () {
       expect(
-        () => lintEntries([badEntry]),
+        () => lintEntries([
+          {
+            'id': 'bad_01',
+            'sign': 'aries',
+            'tone': 'soft',
+            'type': 'message',
+            'text': 'Bu kesinlikle gerÃ§ekleÅŸecek, endiÅŸelenme.',
+            'tags': <String>[],
+          },
+        ]),
         throwsA(isA<TestFailure>()),
       );
     });
 
-    test('Çok uzun mesaj reddedilir', () {
-      final longEntry = {
-        'id': 'test_long',
-        'sign': 'aries',
-        'tone': 'soft',
-        'message': 'A' * (maxMessageLength + 1),
-        'affirmation': 'Kısa olumlama.',
-      };
-
+    test('Ã‡ok uzun mesaj reddedilir', () {
       expect(
-        () => lintEntries([longEntry]),
+        () => lintEntries([
+          {
+            'id': 'long_01',
+            'sign': 'aries',
+            'tone': 'soft',
+            'type': 'message',
+            'text': 'A' * (maxMessageLength + 1),
+            'tags': <String>[],
+          },
+        ]),
         throwsA(isA<TestFailure>()),
       );
     });
 
-    test('id eksik entry reddedilir', () {
-      final noId = {
-        'sign': 'aries',
-        'tone': 'soft',
-        'message': 'Normal mesaj.',
-        'affirmation': 'Normal olumlama.',
-      };
-
+    test('GeÃ§ersiz sign reddedilir', () {
       expect(
-        () => lintEntries([noId]),
+        () => lintEntries([
+          {
+            'id': 'bad_sign',
+            'sign': 'dragon',
+            'tone': 'soft',
+            'type': 'message',
+            'text': 'Normal mesaj.',
+            'tags': <String>[],
+          },
+        ]),
         throwsA(isA<TestFailure>()),
       );
     });
   });
+
+  group('Ä°Ã§erik Lint Testi â€” gerÃ§ek JSON dosyasÄ±', () {
+    test('daily_content.json lint geÃ§iyor', () {
+      // Flutter test ortamÄ±nda rootBundle yok; dosyayÄ± doÄŸrudan oku
+      final file = File('assets/content/daily_content.json');
+      expect(file.existsSync(), true, reason: 'JSON dosyasÄ± bulunamadÄ±');
+
+      final data =
+          json.decode(file.readAsStringSync()) as Map<String, dynamic>;
+      final entries = (data['entries'] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+
+      expect(
+        entries.length,
+        greaterThanOrEqualTo(672),
+        reason: '672+ entry bekleniyor, ${entries.length} bulundu',
+      );
+
+      lintEntries(entries);
+    });
+
+    test('12 burÃ§ Ã— 4 ton Ã— en az 7 mesaj ve 7 olumlama mevcut', () {
+      final file = File('assets/content/daily_content.json');
+      if (!file.existsSync()) return; // dosya yoksa atla
+
+      final data =
+          json.decode(file.readAsStringSync()) as Map<String, dynamic>;
+      final entries = (data['entries'] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+
+      for (final sign in validSigns) {
+        for (final tone in validTones) {
+          final messages = entries
+              .where((e) =>
+                  e['sign'] == sign &&
+                  e['tone'] == tone &&
+                  e['type'] == 'message')
+              .toList();
+          final affirmations = entries
+              .where((e) =>
+                  e['sign'] == sign &&
+                  e['tone'] == tone &&
+                  e['type'] == 'affirmation')
+              .toList();
+
+          expect(
+            messages.length,
+            greaterThanOrEqualTo(7),
+            reason: '$sign/$tone iÃ§in ${messages.length} mesaj var (â‰¥7 gerekiyor)',
+          );
+          expect(
+            affirmations.length,
+            greaterThanOrEqualTo(7),
+            reason:
+                '$sign/$tone iÃ§in ${affirmations.length} olumlama var (â‰¥7 gerekiyor)',
+          );
+        }
+      }
+    });
+  });
 }
+

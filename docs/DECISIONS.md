@@ -35,3 +35,15 @@ Aşama 3'te arka plan parçacık sayısı `AppLimits.maxParticleCount` (60) ile 
 
 ### D-10 · Ruh hayvanı zaman dilimi sınırları
 Spec Bölüm 12.3'ten: Şafak 04:00–09:59, Gün 10:00–15:59, Akşam 16:00–21:59, Gece 22:00–03:59. `SpiritAnimalTimePeriod.fromHour` deterministik olarak hesaplar.
+
+### D-11 · DAO metod adlandirma
+Drift DatabaseConnectionUser'daki update(table)/delete(table) ile celiski olmasin diye DAO metodlari yeniden adlandirildi: insertIntention, updateIntention, deleteIntention, insertEntry, updateEntry, deleteEntry.
+
+### D-12 · Icerik JSON semasi (Phase 3)
+Flat list: {id, sign, tone, type, text, tags}. type = 'message' | 'affirmation'. LocalContentService in-memory filtreleme yapar, nested map yerine.
+
+### D-13 · StreakBit vs StreakActivity
+enums.dart'taki StreakActivity (value object) ile cakisma onlemek icin streak_repository.dart'ta bitmask sabitleri StreakBit adini aldi.
+
+### D-14 · EmptyStateWidget API
+title (required) + subtitle (optional). message parametresi yok — bu ayrim tum journale screen'lerde uygulanmali.

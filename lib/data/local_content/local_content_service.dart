@@ -8,12 +8,14 @@ import '../../domain/models/enums.dart';
 import '../../domain/services/ai_content_service.dart';
 
 /// LocalContentService: JSON asset'inden içerik okur.
+/// JSON şeması: { version, lint_rules, entries: [{id, sign, tone, type, text, tags}] }
 /// Deterministik tohumlama: aynı gün + burç + ton → aynı içerik.
 /// Son N günde gösterilen içerik tekrarlanmaz.
 class LocalContentService implements AIContentService {
   LocalContentService();
 
-  Map<String, dynamic>? _contentCache;
+  List<Map<String, dynamic>>? _messagesCache;
+  List<Map<String, dynamic>>? _affirmationsCache;
 
   @override
   bool get isRealAI => false;
@@ -21,17 +23,30 @@ class LocalContentService implements AIContentService {
   @override
   ContentSource get contentSource => ContentSource.local;
 
-  Future<Map<String, dynamic>> _loadContent() async {
-    if (_contentCache != null) return _contentCache!;
+  Future<void> _ensureLoaded() async {
+    if (_messagesCache != null) return;
     try {
       final raw =
           await rootBundle.loadString('assets/content/daily_content.json');
-      _contentCache = json.decode(raw) as Map<String, dynamic>;
+      final data = json.decode(raw) as Map<String, dynamic>;
+      final entries =
+          (data['entries'] as List<dynamic>).cast<Map<String, dynamic>>();
+
+      _messagesCache = entries.where((e) => e['type'] == 'message').toList();
+      _affirmationsCache =
+          entries.where((e) => e['type'] == 'affirmation').toList();
     } catch (_) {
-      // Kütüphane henüz yok (Aşama 3'te tamamlanacak), fallback kullan
-      _contentCache = _fallbackContent;
+      _messagesCache = [];
+      _affirmationsCache = [];
     }
-    return _contentCache!;
+  }
+
+  List<Map<String, dynamic>> _filter(
+    List<Map<String, dynamic>> pool,
+    String sign,
+    String tone,
+  ) {
+    return pool.where((e) => e['sign'] == sign && e['tone'] == tone).toList();
   }
 
   @override
@@ -41,36 +56,34 @@ class LocalContentService implements AIContentService {
     required String localDate,
     required List<String> recentContentKeys,
   }) async {
-    final content = await _loadContent();
-    final signKey = sign.name;
-    final toneKey = tone.name;
+    await _ensureLoaded();
 
-    final List<dynamic> entries = (content['messages']
-            as Map<String, dynamic>?)?[signKey]?[toneKey] as List<dynamic>? ??
-        [];
+    final pool = _filter(_messagesCache!, sign.name, tone.name);
 
-    if (entries.isEmpty) {
+    if (pool.isEmpty) {
       return ServiceSuccess(_fallbackDailyContent(sign, tone));
     }
 
-    // Deterministik tohumlama: localDate seed'i
-    final seed = localDate.hashCode ^ signKey.hashCode ^ toneKey.hashCode;
+    // Deterministik tohumlama
+    final seed = localDate.hashCode ^ sign.index ^ tone.index;
     final rng = Random(seed);
 
     // Son N günde gösterilenleri filtrele
-    final available = entries
-        .cast<Map<String, dynamic>>()
+    final available = pool
         .where((e) => !recentContentKeys.contains(e['id'] as String?))
         .toList();
+    final candidates = available.isNotEmpty ? available : pool;
+    final picked = candidates[rng.nextInt(candidates.length)];
 
-    final pool =
-        available.isNotEmpty ? available : entries.cast<Map<String, dynamic>>();
-    final picked = pool[rng.nextInt(pool.length)];
+    // Aynı burç+ton için bir olumlama da seç
+    final affPool = _filter(_affirmationsCache!, sign.name, tone.name);
+    final affirmation = affPool.isNotEmpty
+        ? affPool[rng.nextInt(affPool.length)]['text'] as String? ?? ''
+        : _fallbackAffirmation(sign, tone);
 
     return ServiceSuccess(DailyContentResult(
-      message: picked['message'] as String? ?? '',
-      affirmation: picked['affirmation'] as String? ?? '',
-      reflectionPrompt: picked['reflectionPrompt'] as String?,
+      message: picked['text'] as String? ?? '',
+      affirmation: affirmation,
       source: ContentSource.local,
       contentKey: picked['id'] as String?,
     ));
@@ -81,18 +94,14 @@ class LocalContentService implements AIContentService {
     required ZodiacSign sign,
     required MessageTone tone,
   }) async {
-    final content = await _loadContent();
-    final List<dynamic> entries =
-        (content['affirmations'] as Map<String, dynamic>?)?[sign.name]
-                ?[tone.name] as List<dynamic>? ??
-            [];
+    await _ensureLoaded();
 
-    if (entries.isEmpty) {
-      return ServiceSuccess(_fallbackAffirmation(sign, tone));
-    }
+    final pool = _filter(_affirmationsCache!, sign.name, tone.name);
+    if (pool.isEmpty) return ServiceSuccess(_fallbackAffirmation(sign, tone));
 
     final rng = Random(DateTime.now().day + sign.index);
-    return ServiceSuccess(entries[rng.nextInt(entries.length)] as String);
+    return ServiceSuccess(
+        pool[rng.nextInt(pool.length)]['text'] as String? ?? '');
   }
 
   @override
@@ -118,7 +127,24 @@ class LocalContentService implements AIContentService {
     );
   }
 
-  // ─── Fallback içerikler ──────────────────────────────────────────────────
+  /// getDailyContent: sign+tone ile bugünün içeriğini döner (HomeScreen kullanır)
+  Future<ServiceResult<DailyContentResult>> getDailyContent({
+    required ZodiacSign sign,
+    required MessageTone tone,
+  }) async {
+    final now = DateTime.now();
+    final localDate =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    return generateDailyMessage(
+      sign: sign,
+      tone: tone,
+      localDate: localDate,
+      recentContentKeys: [],
+    );
+  }
+
+  // ── Fallback ─────────────────────────────────────────────────────────────────
+
   DailyContentResult _fallbackDailyContent(ZodiacSign sign, MessageTone tone) {
     return DailyContentResult(
       message:
@@ -131,14 +157,11 @@ class LocalContentService implements AIContentService {
   }
 
   String _fallbackAffirmation(ZodiacSign sign, MessageTone tone) {
-    return 'Her yeni gün, yeni bir başlangıç fırsatıdır.';
+    return '${sign.displayName} gücüyle bugün adım atıyorum.';
   }
-
-  static const _fallbackContent = <String, dynamic>{};
 }
 
-// ─── MockAIService ────────────────────────────────────────────────────────────
-/// Açıkça "Geliştirme modu" olarak işaretlenmiş; gerçek AI gibi sunulmaz.
+/// MockAIService — geliştirme modunda kullanılır; gerçek AI gibi sunulmaz
 class MockAIService implements AIContentService {
   @override
   bool get isRealAI => false;
@@ -153,16 +176,13 @@ class MockAIService implements AIContentService {
     required String localDate,
     required List<String> recentContentKeys,
   }) async {
-    await Future<void>.delayed(
-        const Duration(milliseconds: 800)); // simüle gecikme
+    await Future<void>.delayed(const Duration(milliseconds: 800));
     return ServiceSuccess(DailyContentResult(
-      message:
-          '[DEMO] ${sign.displayName} için ${tone.displayName} ton ile oluşturulan örnek mesaj. '
-          'Bu içerik gerçek bir AI tarafından üretilmemiştir.',
-      affirmation: '[DEMO] Bu bir örnek olumlamadır.',
-      reflectionPrompt: '[DEMO] Bugün sana en çok ne iyi geldi?',
+      message: '[Mock] ${sign.displayName} için ${tone.displayName} mesaj: '
+          'Bu örnek bir yanıttır. Gerçek AI Aşama 6\'da devreye girecek.',
+      affirmation: '[Mock] Ben yeterliyim.',
       source: ContentSource.demo,
-      contentKey: 'demo_${sign.name}_${tone.name}',
+      contentKey: 'mock_01',
     ));
   }
 
@@ -171,8 +191,7 @@ class MockAIService implements AIContentService {
     required ZodiacSign sign,
     required MessageTone tone,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    return ServiceSuccess('[DEMO] ${sign.displayName} için örnek olumlama.');
+    return ServiceSuccess('[Mock] Olumlama: Bugün harika bir gün.');
   }
 
   @override
@@ -181,7 +200,7 @@ class MockAIService implements AIContentService {
     required MessageTone tone,
     String? category,
   }) async {
-    return ServiceSuccess('[DEMO] Örnek niyet önerisi.');
+    return ServiceSuccess('[Mock] Niyet önerisi: Bugün küçük bir adım at.');
   }
 
   @override
@@ -192,14 +211,27 @@ class MockAIService implements AIContentService {
   }) async {
     await Future<void>.delayed(const Duration(seconds: 1));
     return ServiceSuccess(
-      '[GELİŞTİRME MODU] Gönderdiğin: "$userMessage" — '
-      'Gerçek AI yanıtı Aşama 6\'da aktif olacak.',
+      '[Mock] Bu bir geliştirme modu yanıtıdır. Gerçek AI Aşama 6\'da aktif.',
+    );
+  }
+
+  Future<ServiceResult<DailyContentResult>> getDailyContent({
+    required ZodiacSign sign,
+    required MessageTone tone,
+  }) async {
+    return generateDailyMessage(
+      sign: sign,
+      tone: tone,
+      localDate: DateTime.now().toString().substring(0, 10),
+      recentContentKeys: [],
     );
   }
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+// ── Providers ─────────────────────────────────────────────────────────────────
+
+/// Aktif içerik servisi (yapılandırmadan seçilir)
+/// Aşama 3: LocalContentService varsayılan
 final aiContentServiceProvider = Provider<AIContentService>((ref) {
-  // Aşama 6'da RemoteAIService ile değiştirilecek
   return LocalContentService();
 });
