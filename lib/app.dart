@@ -3,24 +3,31 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/theme.dart';
 import 'core/router/app_router.dart';
+import 'data/repositories/user_profile_repository.dart';
 
 /// Uygulama kök widget'ı.
 /// Tema, yerelleştirme ve router burada bağlanır.
+/// Tema seçimi kullanıcı profilinden okunur; Aşama 3'te tam ayarlar eklenecek.
 class RuhunParliyorApp extends ConsumerWidget {
   const RuhunParliyorApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    // Tema seçimi Aşama 3'te settings'ten okunacak; şimdilik varsayılan
-    const themeId = AppThemeId.amethystAurora;
+
+    // Kullanıcı profili varsa onun tema tercihini kullan
+    final profile = ref.watch(userProfileProvider);
+    final themeIdStr = profile?.themeId ?? 'amethystAurora';
+    final themeId = AppThemeId.values.firstWhere(
+      (t) => t.name == themeIdStr,
+      orElse: () => AppThemeId.amethystAurora,
+    );
     final theme = AppThemes.getTheme(themeId);
 
     return MaterialApp.router(
       title: 'Ruhun Parlıyor',
       debugShowCheckedModeBanner: false,
       theme: theme,
-      // Koyu tema şimdilik aynı (Pearl Moon kullanıcı seçimi Aşama 3'te)
       darkTheme: theme,
       themeMode: ThemeMode.dark,
       routerConfig: router,
@@ -35,7 +42,7 @@ class RuhunParliyorApp extends ConsumerWidget {
       ],
       locale: const Locale('tr', 'TR'),
       builder: (context, child) {
-        // Yazı ölçeği: maksimum 1.5 (200% sistem ölçeğine 15sp'nin altına düşmemek için)
+        // Yazı ölçeği: 0.8–1.5 arası (erişilebilirlik)
         final mediaQuery = MediaQuery.of(context);
         return MediaQuery(
           data: mediaQuery.copyWith(

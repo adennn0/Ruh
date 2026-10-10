@@ -9,8 +9,10 @@ import '../../features/discover/discover_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile/notification_settings_screen.dart';
 import '../../widgets/scaffold_with_nav_bar.dart';
+import '../../data/repositories/user_profile_repository.dart';
+import '../theme/theme.dart';
 
-/// Uygulama route isimleri (string sabit yerine const kullan)
+/// Uygulama route isimleri
 class AppRoutes {
   AppRoutes._();
 
@@ -29,7 +31,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: false,
     routes: [
-      // Splash / onboarding yönlendirme
+      // Splash → onboarding veya home
       GoRoute(
         path: AppRoutes.splash,
         builder: (context, state) => const _SplashRedirect(),
@@ -38,7 +40,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.onboarding,
         builder: (context, state) => const OnboardingScreen(),
       ),
-      // Bildirim ayarları (Rehber başlığı zilinden ve Profile'den açılır)
       GoRoute(
         path: AppRoutes.notificationSettings,
         builder: (context, state) => const NotificationSettingsScreen(),
@@ -101,21 +102,47 @@ class _SplashRedirect extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Başlatma sırasında kısa bir bekleme — settings yükleniyor
-    return FutureBuilder(
-      future: Future<void>.delayed(const Duration(milliseconds: 300)),
+    final repo = ref.watch(userProfileRepositoryProvider);
+
+    return FutureBuilder<void>(
+      future: Future<void>.delayed(const Duration(milliseconds: 200)),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            // Aşama 2'de settings'ten onboardingDone okunacak
-            // Şimdilik her zaman onboarding'e gönder
-            context.go(AppRoutes.onboarding);
+            if (repo.onboardingDone) {
+              context.go(AppRoutes.home);
+            } else {
+              context.go(AppRoutes.onboarding);
+            }
           });
         }
         return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          body: Center(child: _SplashBody()),
         );
       },
+    );
+  }
+}
+
+class _SplashBody extends StatelessWidget {
+  const _SplashBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<CosmicTokens>();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircularProgressIndicator(
+          color: tokens?.accentPrimary,
+        ),
+        const SizedBox(height: 16),
+        if (tokens != null)
+          Text(
+            'Ruhun Parlıyor',
+            style: AppTextStyles.title(tokens),
+          ),
+      ],
     );
   }
 }
