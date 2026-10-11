@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/entitlement/entitlement.dart';
 import '../../core/theme/theme.dart';
@@ -57,7 +58,9 @@ class NotificationSettingsScreen extends ConsumerWidget {
     if (settings.timeMoment ||
         settings.intentionReminder ||
         settings.eveningReview ||
-        settings.dailyMessage) {
+        settings.dailyMessage ||
+        settings.pastIntentionReminder ||
+        settings.nightReminder) {
       final granted = await scheduler.enableAndRebuild(
         profile: profile,
         settings: settings,
@@ -235,6 +238,101 @@ class NotificationSettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: CosmicCard(
+              padding: const EdgeInsets.all(16),
+              child: isPremium
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Gece niyet molası',
+                                      style: AppTextStyles.titleSmall(tokens)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'İstersen 22:00–08:00 arasında tek bir kişisel hatırlatma seç. Bu bildirim sessiz saat tercihini aşar; diğerleri sessiz kalır.',
+                                    style: AppTextStyles.caption(tokens),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: state.nightReminder,
+                              activeTrackColor: tokens.accentPrimary,
+                              onChanged: (enabled) async {
+                                await controller.updateNightReminder(enabled);
+                                if (context.mounted) {
+                                  await _afterChange(context, ref);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        if (state.nightReminder) ...[
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: () => _selectTime(
+                              context,
+                              state.nightReminderTime,
+                              (time) async {
+                                if (!(time.hour >= 22 || time.hour < 8)) {
+                                  if (context.mounted) {
+                                    showCosmicSnackbar(
+                                      context,
+                                      'Gece hatırlatıcısı 22:00–08:00 arasında olmalı.',
+                                      isError: true,
+                                    );
+                                  }
+                                  return;
+                                }
+                                await controller.updateNightReminderTime(time);
+                                if (context.mounted) {
+                                  await _afterChange(context, ref);
+                                }
+                              },
+                            ),
+                            icon: const Icon(Icons.schedule_outlined),
+                            label: Text(
+                              'Saat: ${state.nightReminderTime.format(context)}',
+                            ),
+                          ),
+                        ],
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Gece niyet molası',
+                                  style: AppTextStyles.titleSmall(tokens)),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Premium ile 22:00–08:00 arasında tek bir saatte kişisel niyet hatırlatması al. Tamamen isteğe bağlıdır.',
+                                style: AppTextStyles.caption(tokens),
+                              ),
+                              const SizedBox(height: 8),
+                              TextButton.icon(
+                                onPressed: () => context.push('/premium'),
+                                icon: Icon(Icons.lock_outline,
+                                    color: tokens.premiumBadge, size: 18),
+                                label: const Text('Premium özelliklerini gör'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const PremiumBadge(compact: true),
+                      ],
+                    ),
             ),
           ),
           extraRow(

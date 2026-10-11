@@ -4,8 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/theme.dart';
 import 'core/router/app_router.dart';
 import 'core/preferences/app_preferences.dart';
+import 'core/entitlement/entitlement.dart';
+import 'data/repositories/intention_repository.dart';
 import 'data/repositories/user_profile_repository.dart';
 import 'domain/services/notification_scheduler.dart';
+import 'features/profile/notification_settings.dart';
+import 'features/profile/notification_settings_screen.dart';
+import 'platform/notifications/notifications_adapter.dart';
 
 /// Uygulama kök widget'ı.
 /// Tema, yerelleştirme ve router burada bağlanır.
@@ -87,6 +92,81 @@ class _NotificationBootstrapState extends ConsumerState<NotificationBootstrap>
     final scheduler = ref.read(notificationSchedulerProvider);
     await scheduler.attachTapHandler();
     await rebuildNotificationWindow(ref);
+    await _maybeRequestNotificationPermission(scheduler);
+  }
+
+  Future<void> _maybeRequestNotificationPermission(
+    NotificationScheduler scheduler,
+  ) async {
+    final repository = ref.read(userProfileRepositoryProvider);
+    final profile = ref.read(userProfileProvider);
+    if (!repository.onboardingDone || profile == null) return;
+
+    final adapter = ref.read(notificationsAdapterProvider);
+    if (await adapter.hasPermission()) return;
+    if (!mounted) return;
+
+    final settings = ref.read(notificationSettingsProvider);
+    final hasAnyReminder = settings.timeMoment ||
+        settings.intentionReminder ||
+        settings.eveningReview ||
+        settings.dailyMessage ||
+        settings.pastIntentionReminder ||
+        settings.nightReminder;
+    if (!hasAnyReminder) return;
+
+    final preferences = ref.read(sharedPreferencesProvider);
+    if (preferences.getBool('notification_permission_prompt_seen') == true) {
+      return;
+    }
+
+    final shouldEnable = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Saat Anı bildirimlerini açalım mı?'),
+        content: const Text(
+          'Çift ve palindrom saatlerde kişisel bir durak hatırlatması al. '
+          'Niyet metnin kilit ekranında gösterilmez. Bildirim izni istediğinde '
+          'hatırlatmaları dilediğin zaman ayarlardan kapatabilirsin.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Şimdi değil'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Bildirimleri aç'),
+          ),
+        ],
+      ),
+    );
+
+    await preferences.setBool('notification_permission_prompt_seen', true);
+    if (shouldEnable != true || !mounted) return;
+
+    final intentions =
+        await ref.read(intentionRepositoryProvider).watchActive().first;
+    final granted = await scheduler.enableAndRebuild(
+      profile: profile,
+      settings: settings,
+      entitlement: ref.read(entitlementServiceProvider),
+      personalSalt: repository.contentSalt,
+      intentionTitles: intentions.map((item) => item.title).toList(),
+      intentions: intentions,
+    );
+    if (!mounted) return;
+    if (!granted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Bildirim izni verilmedi. İstersen Bildirim Ayarları’ndan daha sonra açabilirsin.',
+          ),
+        ),
+      );
+      return;
+    }
+    ref.invalidate(notificationAvailabilityProvider);
   }
 
   @override

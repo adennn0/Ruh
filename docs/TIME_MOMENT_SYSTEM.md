@@ -16,7 +16,7 @@ Bu uygulama **çift saat** (11:11, 14:14, 22:22) ve **palindrom saat** (14:41, 1
 
 ## Kurallar (bozulmaz)
 
-1. İzin yoksa planlama yok. İlk istek, kullanıcı bir bildirimi açtığında bağlamıyla yapılır.
+1. İzin yoksa planlama yok. Onboarding tamamlandıktan sonraki ilk ana ekran girişinde, işletim sistemi izninden önce tek seferlik açıklayıcı uygulama penceresi gösterilir. Sistem izni yalnızca kullanıcı kabul ederse istenir; "Şimdi değil" seçimi tekrar tekrar sorulmaz. Kullanıcı Bildirim Ayarları'ndan daha sonra açabilir.
 2. Ücretsiz **günde 5**, premium **günde 12** özel saat (`AppLimits`).
 3. Saatler herkese aynı liste olarak gitmez. Tohum: tarih + burç + ton + `contentSalt` + aktif niyet başlıkları.
 4. Sessiz saatler (varsayılan 22:00–08:00) herkese açık, planlamadan düşülür.
@@ -24,6 +24,8 @@ Bu uygulama **çift saat** (11:11, 14:14, 22:22) ve **palindrom saat** (14:41, 1
 6. Dil: gerçekleşme garantisi, kader, korku, şifa iddiası yok. Sembolik durak + küçük somut adım.
 7. Planlama 7 günlük pencere; uygulama açılışı, ön plana dönüş, ayar değişiminde yeniden kurulur.
 8. Platform kodu yalnızca `lib/platform/` arkasında durur.
+9. Premium kullanıcı gece hatırlatıcısını ayrıca ve isteğe bağlı açıp 22:00–08:00 aralığında tek bir saat seçebilir. Bu tek bildirim açıkça seçildiğinde sessiz saatleri aşar; diğer bildirimler sessiz saat kuralına uyar ve günlük 12 bildirim kotasına dahildir. Varsayılanı kapalıdır.
+10. Bildirim gövdeleri sabit genel cümlelerden seçilmez; ton, burç, tarih/saat ve kişisel tuzla sembolik düşünme metni deterministik seçilir. Aynı Saat Anı etiketi için yedi günlük pencerede gövde tekrarı önlenir. Niyet metni kilit ekranına/genel hatırlatma gövdesine yazılmaz.
 
 ### Android teslim koşulları
 
@@ -35,7 +37,7 @@ Bu uygulama **çift saat** (11:11, 14:14, 22:22) ve **palindrom saat** (14:41, 1
 ## Kullanıcı akışı
 
 1. Profil veya Ana Sayfa zili → Bildirim Ayarları → **Kişisel Saat Anı** açık.
-2. Android 13+ `POST_NOTIFICATIONS` izni istenir.
+2. Kullanıcı ilk açılış penceresinde kabul ederse Android 13+ `POST_NOTIFICATIONS` izni istenir.
 3. O gün (ve sonraki 6 gün) kişisel saatler planlanır.
 4. Bildirim gelir → dokununca o ana özel tam metin + “niyetimi söyle” / nefes molası.
 

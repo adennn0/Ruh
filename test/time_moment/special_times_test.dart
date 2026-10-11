@@ -158,6 +158,25 @@ void main() {
       expect(soft.fullMessage, isNot(strong.fullMessage));
     });
 
+    test('notification body rotates when the previous copy was just used', () {
+      final first = engine.compose(
+        time: time,
+        localDate: '2026-10-10',
+        sign: ZodiacSign.aries,
+        tone: MessageTone.soft,
+        personalSalt: 's',
+      );
+      final next = engine.compose(
+        time: time,
+        localDate: '2026-10-11',
+        sign: ZodiacSign.aries,
+        tone: MessageTone.soft,
+        personalSalt: 's',
+        excludedNotificationBodies: [first.notificationBody],
+      );
+      expect(next.notificationBody, isNot(first.notificationBody));
+    });
+
     test('saatin sembolik kategorisi ve anlamı mesajda kullanılır', () {
       final copy = engine.compose(
         time: time,

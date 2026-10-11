@@ -31,15 +31,22 @@ class _TimeMomentScreenState extends ConsumerState<TimeMomentScreen> {
   void initState() {
     super.initState();
     _updateTime();
-    if (widget.initialTime == null ||
-        !SpecialTimes.isSpecial(widget.initialTime!)) {
+    if (!_hasFixedInitialTime) {
       _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
     }
   }
 
+  bool get _hasFixedInitialTime {
+    final value = widget.initialTime;
+    if (value == null || !RegExp(r'^\d{2}:\d{2}$').hasMatch(value)) {
+      return false;
+    }
+    final parts = value.split(':').map(int.parse).toList();
+    return parts[0] >= 0 && parts[0] < 24 && parts[1] >= 0 && parts[1] < 60;
+  }
+
   void _updateTime() {
-    if (widget.initialTime != null &&
-        SpecialTimes.isSpecial(widget.initialTime!)) {
+    if (_hasFixedInitialTime) {
       if (_currentTime != widget.initialTime) {
         setState(() => _currentTime = widget.initialTime!);
       }

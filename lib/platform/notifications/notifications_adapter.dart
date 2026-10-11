@@ -164,12 +164,8 @@ class LocalNotificationsAdapter implements NotificationsAdapter {
       if (Platform.isIOS) {
         final ios = _plugin.resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin>();
-        final granted = await ios?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
-        return granted ?? false;
+        final status = await ios?.checkPermissions();
+        return status?.isEnabled ?? false;
       }
     } catch (_) {}
     return false;

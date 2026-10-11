@@ -30,9 +30,10 @@ class TimeMomentCopyEngine {
     required MessageTone tone,
     required String personalSalt,
     String? intentionTitle,
+    List<String> excludedNotificationBodies = const [],
   }) {
     final seed = stableHashParts(
-      [localDate, time.label, sign.index, tone.index, personalSalt],
+      [time.label, sign.index, tone.index, personalSalt],
     );
     final kindLabel = switch (time.kind) {
       SpecialTimeKind.mirror => 'Çift saat',
@@ -41,15 +42,30 @@ class TimeMomentCopyEngine {
     };
 
     final title = '${time.label} · Saat Anı';
-    final bodyPool = _bodiesFor(tone);
     final meaning = SpecialTimeContent.meaningFor(time);
     final reflectionPool = SpecialTimeContent.messagesFor(time);
-    final body = bodyPool[seed.abs() % bodyPool.length]
-        .replaceAll('{time}', time.label)
-        .replaceAll('{sign}', sign.displayName)
-        .replaceAll('{theme}', sign.energyTheme.toLowerCase());
-
-    final promptIndex = seed.abs() % reflectionPool.length;
+    final notificationLead = switch (tone) {
+      MessageTone.soft => 'Kendine nazik bir soru:',
+      MessageTone.strong => 'Bugün seçebileceğin küçük adım:',
+      MessageTone.spiritual => 'Bu sembolik durakta düşünebileceğin:',
+      MessageTone.rational => 'Kısa bir düşünme molası:',
+    };
+    final promptIndexForDate =
+        (seed.abs() + _dayOfYear(localDate)) % reflectionPool.length;
+    var promptIndex = promptIndexForDate;
+    var body = '';
+    for (var offset = 0; offset < reflectionPool.length; offset++) {
+      final candidateIndex = (promptIndex + offset) % reflectionPool.length;
+      final candidate = '$notificationLead ${reflectionPool[candidateIndex]}';
+      if (!excludedNotificationBodies.contains(candidate)) {
+        promptIndex = candidateIndex;
+        body = candidate;
+        break;
+      }
+    }
+    if (body.isEmpty) {
+      body = '$notificationLead ${reflectionPool[promptIndex]}';
+    }
     final reflection = reflectionPool[promptIndex];
     final opening = _openingFor(tone, time.label, meaning.category);
     var full = '$opening\n\n$reflection';
@@ -68,6 +84,55 @@ class TimeMomentCopyEngine {
       fullMessage: full,
       kindLabel: kindLabel,
     );
+  }
+
+  /// Optional, explicitly enabled premium reminder; this is a reflection
+  /// prompt, not an astrological claim that a particular hour is better.
+  String composeNightNotification({
+    required String localDate,
+    required ZodiacSign sign,
+    required MessageTone tone,
+    required String personalSalt,
+    List<String> excludedBodies = const [],
+  }) =>
+      composeReminderNotification(
+        title: 'Gece niyet molası',
+        localDate: localDate,
+        sign: sign,
+        tone: tone,
+        personalSalt: personalSalt,
+        excludedBodies: excludedBodies,
+      );
+
+  String composeReminderNotification({
+    required String title,
+    required String localDate,
+    required ZodiacSign sign,
+    required MessageTone tone,
+    required String personalSalt,
+    List<String> excludedBodies = const [],
+  }) {
+    const prompts = SpecialTimeContent.prompts;
+    final seed = stableHashParts([title, sign.index, tone.index, personalSalt]);
+    final lead = switch (tone) {
+      MessageTone.soft => 'Kendine nazikçe sor:',
+      MessageTone.strong => 'Küçük ve net bir adım seç:',
+      MessageTone.spiritual => 'Kendine sorabileceğin:',
+      MessageTone.rational => 'Kısa bir düşünme sorusu:',
+    };
+    for (var offset = 0; offset < prompts.length; offset++) {
+      final index =
+          (_dayOfYear(localDate) + seed.abs() + offset) % prompts.length;
+      final candidate = '$title · $lead ${prompts[index]}';
+      if (!excludedBodies.contains(candidate)) return candidate;
+    }
+    return '$title · $lead ${prompts[seed.abs() % prompts.length]}';
+  }
+
+  int _dayOfYear(String localDate) {
+    final parsed = DateTime.tryParse(localDate);
+    if (parsed == null) return 0;
+    return parsed.difference(DateTime(parsed.year)).inDays;
   }
 
   String _openingFor(MessageTone tone, String time, String category) =>
@@ -99,27 +164,4 @@ class TimeMomentCopyEngine {
         '"$title" niyetin için ölçülebilir küçük adımın nedir?',
     };
   }
-
-  List<String> _bodiesFor(MessageTone tone) => switch (tone) {
-        MessageTone.soft => [
-            '{time}: bir an dur, nefes al. {sign} ritminle kendine yumuşak bir yer aç.',
-            'Bu çift/palindrom saat bir hatırlatıcı: bugün kendine nazik kal.',
-            '{time} geldi. Omuzlarını indir; küçük bir niyet yeterli.',
-          ],
-        MessageTone.strong => [
-            '{time}. Dur. Niyetini söyle, sonra bir adım at.',
-            '{sign}: bu anda net ol. Tek bir somut hareket.',
-            '{time} — hatırlatıcı. Odaklan, seç, ilerle.',
-          ],
-        MessageTone.spiritual => [
-            '{time}: ayna saat. {theme} temasıyla bu ana yerleş.',
-            'Bazı insanlar {time} anını bir durak olarak görür. Nefes al.',
-            '{sign} enerjisiyle {time} — iç sesine kısa bir kulak ver.',
-          ],
-        MessageTone.rational => [
-            '{time} tekrarlayan bir desen. Bu bir hatırlatıcı, kehanet değil.',
-            'Kısa mola: bugünkü niyetin için tek somut adımı seç.',
-            '{sign} gününde {time}. Düşün, seç, kaydet.',
-          ],
-      };
 }

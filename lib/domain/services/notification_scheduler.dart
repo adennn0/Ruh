@@ -92,6 +92,9 @@ class NotificationScheduler {
 
     final dailyCap = entitlement.limitFor(AppFeature.dailyNotifications);
     final cap = dailyCap < 0 ? 12 : dailyCap;
+    final nightReminderEnabled = settings.nightReminder &&
+        entitlement.isFeatureAvailable(AppFeature.nightNotifications) &&
+        entitlement.limitFor(AppFeature.nightNotifications) > 0;
     final now = DateTime.now();
     final quiet = QuietHours(
       startMinutes:
@@ -101,12 +104,25 @@ class NotificationScheduler {
     );
 
     final items = <ScheduledNotification>[];
+    final usedBodies = <String>[];
     for (var dayOffset = 0;
         dayOffset <= AppLimits.notificationWindowDays;
         dayOffset++) {
       final day =
           DateTime(now.year, now.month, now.day).add(Duration(days: dayOffset));
       var remaining = cap;
+      final nightTime = settings.nightReminderTime;
+      final isNightTime = nightTime.hour >= 22 || nightTime.hour < 8;
+      final nightAt = DateTime(
+        day.year,
+        day.month,
+        day.day,
+        nightTime.hour,
+        nightTime.minute,
+      );
+      final reserveNightSlot = nightReminderEnabled &&
+          isNightTime &&
+          (dayOffset != 0 || nightAt.isAfter(now));
 
       if (settings.timeMoment &&
           remaining > 0 &&
@@ -117,7 +133,7 @@ class NotificationScheduler {
             sign: profile.zodiacSign,
             toneIndex: profile.tone.index,
             personalSalt: personalSalt,
-            maxCount: remaining,
+            maxCount: remaining - (reserveNightSlot ? 1 : 0),
             quietHours: quiet,
             birthHour: profile.birthTimeKnown ? profile.birthHour : null,
             intentionTitles: intentionTitles,
@@ -140,6 +156,7 @@ class NotificationScheduler {
             personalSalt: personalSalt,
             intentionTitle: intention.isEmpty ? null : intention,
           );
+          usedBodies.add(copy.notificationBody);
           items.add(
             ScheduledNotification(
               id: 300000 + dayOffset * 40 + i,
@@ -155,12 +172,41 @@ class NotificationScheduler {
         }
       }
 
+      if (nightReminderEnabled &&
+          remaining > 0 &&
+          dayOffset < AppLimits.notificationWindowDays &&
+          isNightTime &&
+          (dayOffset != 0 || nightAt.isAfter(now))) {
+        final dateKey =
+            '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+        final nightBody = copyEngine.composeNightNotification(
+          localDate: dateKey,
+          sign: profile.zodiacSign,
+          tone: profile.tone,
+          personalSalt: personalSalt,
+        );
+        usedBodies.add(nightBody);
+        remaining--;
+        items.add(
+          ScheduledNotification(
+            id: 600000 + dayOffset,
+            title: 'Gece niyet molası',
+            body: nightBody,
+            scheduledTime: nightAt,
+            payload: TimeMomentPayload(
+              localDate: dateKey,
+              timeLabel:
+                  'gece@${nightTime.hour.toString().padLeft(2, '0')}:${nightTime.minute.toString().padLeft(2, '0')}',
+            ).encode(),
+          ),
+        );
+      }
+
       void addExtra({
         required bool enabled,
         required TimeOfDay time,
         required int typeIndex,
         required String title,
-        required String body,
         required String routeTimeLabel,
       }) {
         if (!enabled ||
@@ -173,6 +219,16 @@ class NotificationScheduler {
         final minutes = time.hour * 60 + time.minute;
         if (quiet.contains(minutes)) return;
         if (dayOffset == 0 && !when.isAfter(now)) return;
+        final dateKey =
+            '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+        final body = copyEngine.composeReminderNotification(
+          title: title,
+          localDate: dateKey,
+          sign: profile.zodiacSign,
+          tone: profile.tone,
+          personalSalt: personalSalt,
+        );
+        usedBodies.add(body);
         remaining--;
         items.add(
           ScheduledNotification(
@@ -181,8 +237,7 @@ class NotificationScheduler {
             body: body,
             scheduledTime: when,
             payload: TimeMomentPayload(
-              localDate:
-                  '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
+              localDate: dateKey,
               timeLabel: routeTimeLabel,
             ).encode(),
           ),
@@ -194,7 +249,6 @@ class NotificationScheduler {
         time: settings.intentionTime,
         typeIndex: 1,
         title: 'Niyet hatırlatıcısı',
-        body: 'Bugünkü niyetin için küçük bir adım seçmeye hazır mısın?',
         routeTimeLabel: 'niyet',
       );
       addExtra(
@@ -202,7 +256,6 @@ class NotificationScheduler {
         time: settings.eveningReviewTime,
         typeIndex: 2,
         title: 'Akşam duruşu',
-        body: 'Günü nazikçe kapatmak için kısa bir bakış.',
         routeTimeLabel: 'aksam',
       );
       addExtra(
@@ -210,7 +263,6 @@ class NotificationScheduler {
         time: settings.dailyMessageTime,
         typeIndex: 3,
         title: 'Günün mesajı hazır',
-        body: 'Burcuna ve tonuna göre bugünkü mesajın seni bekliyor.',
         routeTimeLabel: 'mesaj',
       );
 
@@ -236,11 +288,20 @@ class NotificationScheduler {
             }
             if (remaining <= 0) break;
             remaining--;
+            final reminderBody = copyEngine.composeReminderNotification(
+              title: 'Bir niyetine dön',
+              localDate:
+                  '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
+              sign: profile.zodiacSign,
+              tone: profile.tone,
+              personalSalt: personalSalt,
+              excludedBodies: usedBodies,
+            );
+            usedBodies.add(reminderBody);
             items.add(ScheduledNotification(
               id: 500000 + intention.id * 10 + days,
               title: 'Bir niyetine dön',
-              body:
-                  'Daha önce belirlediğin bir niyeti yeniden gözden geçirmek ister misin?',
+              body: reminderBody,
               scheduledTime: due,
               payload: TimeMomentPayload(
                 localDate:

@@ -15,6 +15,8 @@ class NotificationSettings {
     this.eveningReviewTime = const TimeOfDay(hour: 20, minute: 0),
     this.dailyMessage = false,
     this.dailyMessageTime = const TimeOfDay(hour: 10, minute: 0),
+    this.nightReminder = false,
+    this.nightReminderTime = const TimeOfDay(hour: 3, minute: 33),
     this.quietHoursStart =
         const TimeOfDay(hour: AppLimits.defaultQuietHoursStart, minute: 0),
     this.quietHoursEnd =
@@ -29,6 +31,8 @@ class NotificationSettings {
   final TimeOfDay eveningReviewTime;
   final bool dailyMessage;
   final TimeOfDay dailyMessageTime;
+  final bool nightReminder;
+  final TimeOfDay nightReminderTime;
   final TimeOfDay quietHoursStart;
   final TimeOfDay quietHoursEnd;
 
@@ -41,6 +45,8 @@ class NotificationSettings {
     TimeOfDay? eveningReviewTime,
     bool? dailyMessage,
     TimeOfDay? dailyMessageTime,
+    bool? nightReminder,
+    TimeOfDay? nightReminderTime,
     TimeOfDay? quietHoursStart,
     TimeOfDay? quietHoursEnd,
   }) {
@@ -54,6 +60,8 @@ class NotificationSettings {
       eveningReviewTime: eveningReviewTime ?? this.eveningReviewTime,
       dailyMessage: dailyMessage ?? this.dailyMessage,
       dailyMessageTime: dailyMessageTime ?? this.dailyMessageTime,
+      nightReminder: nightReminder ?? this.nightReminder,
+      nightReminderTime: nightReminderTime ?? this.nightReminderTime,
       quietHoursStart: quietHoursStart ?? this.quietHoursStart,
       quietHoursEnd: quietHoursEnd ?? this.quietHoursEnd,
     );
@@ -99,6 +107,11 @@ class NotificationSettingsController
         prefs.getString('notif_daily_message_time'),
         const TimeOfDay(hour: 10, minute: 0),
       ),
+      nightReminder: prefs.getBool('notif_night_reminder') ?? false,
+      nightReminderTime: _parseTime(
+        prefs.getString('notif_night_reminder_time'),
+        const TimeOfDay(hour: 3, minute: 33),
+      ),
       quietHoursStart: _parseTime(
         prefs.getString('notif_quiet_start'),
         const TimeOfDay(hour: 22, minute: 0),
@@ -117,6 +130,16 @@ class NotificationSettingsController
 
   Future<void> updateTime(String key, TimeOfDay time) async {
     await prefs.setString('notif_${key}_time', _formatTime(time));
+    _load();
+  }
+
+  Future<void> updateNightReminder(bool enabled) async {
+    await prefs.setBool('notif_night_reminder', enabled);
+    _load();
+  }
+
+  Future<void> updateNightReminderTime(TimeOfDay time) async {
+    await prefs.setString('notif_night_reminder_time', _formatTime(time));
     _load();
   }
 

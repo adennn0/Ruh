@@ -116,3 +116,6 @@ Saat Anı niyetleri `time_moment` Drift tablosunda kalıcıdır. Kaydetme tamaml
 
 ### D-37 · Mobil arayüz hiyerarşisi
 Beş alt sekme dar ekranda eşit genişlikte, daima etiketli ve sistem `NavigationBar` davranışıyla görünür. Tekrarlayan parıltı animasyonları temel akışlardan kaldırılır; CTA ve yüzeyler ortak tema tokenlarıyla daha sakin, düz ve erişilebilir tutulur.
+
+### D-38 · Bildirim izni, değişken metin ve premium gece molası
+Onboarding tamamlandıktan sonraki ilk ana ekran girişinde bir kez açıklayıcı bildirim izni penceresi gösterilir; işletim sistemi izni yalnızca kullanıcı kabul ederse istenir, erteleme tekrar tekrar sorulmaz. Bildirim gövdeleri kişisel niyet başlığını içermez ve aynı özel saat için kayan 7 günlük pencerede tekrarlanmaz. Premium gece niyet molası varsayılan kapalıdır; kullanıcı 22:00–08:00 arasında tek saat seçip yalnızca bu hatırlatmanın uygulama sessiz saatlerini aşmasını açıkça etkinleştirir. Bu bildirim günlük kotaya dahildir ve burç içeriği en uygun saat/sonuç tahmini olarak sunulmaz. Bildirime dokununca niyet ekleme ve kişisel anı onaylama seçenekleri gösterilir; onay yerel tercihte tarih/saat bazında saklanır.

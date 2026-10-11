@@ -10,6 +10,7 @@ enum EntitlementTier { free, premium }
 enum AppFeature {
   // Bildirimler
   dailyNotifications,
+  nightNotifications,
   customNotificationTimes,
   // Niyetler
   activeIntentions,
@@ -118,6 +119,7 @@ class EntitlementService extends ChangeNotifier {
 
   static const _premiumLimits = {
     AppFeature.dailyNotifications: AppLimits.premiumMaxDailyNotifications,
+    AppFeature.nightNotifications: AppLimits.premiumNightReminderCount,
     AppFeature.activeIntentions: AppLimits.premiumMaxActiveIntentions,
     AppFeature.dailyMessages: AppLimits.premiumMaxDailyMessages,
     AppFeature.messageCooldown: AppLimits.premiumCooldownSeconds,

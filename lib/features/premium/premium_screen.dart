@@ -102,6 +102,10 @@ class PremiumScreen extends ConsumerWidget {
 const _features = [
   ('Daha geniş Saat Anı seçkisi', 'Günlük bildirim kotası 5’ten 12’ye çıkar.'),
   (
+    'İsteğe bağlı gece niyet molası',
+    '22:00–08:00 arasında seçtiğin tek saatte hatırlatma al; yalnızca bu açıkça seçtiğin bildirim sessiz saatleri aşar.'
+  ),
+  (
     'Daha fazla niyet',
     'Aktif niyet sınırı kalkar; mevcut niyetlerin her zaman sende kalır.'
   ),

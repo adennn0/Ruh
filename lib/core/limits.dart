@@ -10,6 +10,7 @@ class AppLimits {
   // Ücretsiz: günde 5 özel saat; premium: günde 12.
   static const int freeMaxDailyNotifications = 5;
   static const int premiumMaxDailyNotifications = 12;
+  static const int premiumNightReminderCount = 1;
   static const int notificationWindowDays = 7;
   static const int defaultQuietHoursStart = 22;
   static const int defaultQuietHoursEnd = 8;
