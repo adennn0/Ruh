@@ -15,6 +15,7 @@ class _Keys {
   static const displayName = 'display_name';
   static const messageTone = 'message_tone';
   static const themeId = 'theme_id';
+  static const contentSalt = 'content_salt';
 }
 
 // ─── UserProfile value object ─────────────────────────────────────────────────
@@ -77,6 +78,16 @@ class UserProfileRepository {
   bool get onboardingDone => _prefs.getBool(_Keys.onboardingDone) ?? false;
   bool get consentGiven => _prefs.getString(_Keys.consentAcceptedAt) != null;
 
+  /// Günlük içerik ve Saat Anı seçimini kişiselleştiren kararlı tuz.
+  /// Cihazda kalır; sunucuya gitmez.
+  String get contentSalt {
+    final existing = _prefs.getString(_Keys.contentSalt);
+    if (existing != null && existing.isNotEmpty) return existing;
+    final created = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
+    _prefs.setString(_Keys.contentSalt, created);
+    return created;
+  }
+
   Future<void> saveConsent() async {
     await _prefs.setString(
       _Keys.consentAcceptedAt,
@@ -103,6 +114,15 @@ class UserProfileRepository {
     await _prefs.setString(_Keys.messageTone, tone.name);
   }
 
+  Future<void> saveDisplayName(String? name) async {
+    final value = name?.trim();
+    if (value == null || value.isEmpty) {
+      await _prefs.remove(_Keys.displayName);
+    } else {
+      await _prefs.setString(_Keys.displayName, value);
+    }
+  }
+
   Future<void> saveThemeId(String themeId) async {
     await _prefs.setString(_Keys.themeId, themeId);
   }
@@ -124,7 +144,7 @@ class UserProfileRepository {
       birthMinute: _prefs.getInt(_Keys.birthMinute),
       displayName: _prefs.getString(_Keys.displayName),
       tone: tone,
-      themeId: _prefs.getString(_Keys.themeId) ?? 'amethystAurora',
+      themeId: _prefs.getString(_Keys.themeId) ?? 'pearlMoon',
     );
   }
 

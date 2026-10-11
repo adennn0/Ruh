@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/theme/theme.dart';
 
-// ─── Gradient buton (birincil CTA) ───────────────────────────────────────────
+// ─── Birincil CTA: sade yüzey, net hiyerarşi ve güçlü dokunma hedefi ────────
 class CosmicPrimaryButton extends StatelessWidget {
   const CosmicPrimaryButton({
     super.key,
@@ -31,54 +31,41 @@ class CosmicPrimaryButton extends StatelessWidget {
     return SizedBox(
       width: width,
       height: height,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: isActive
-              ? tokens.primaryGradient
-              : LinearGradient(
-                  colors: [tokens.onSurfaceMuted, tokens.onSurfaceMuted],
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: tokens.accentPrimary,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: tokens.onSurfaceMuted.withValues(alpha: .35),
+          disabledForegroundColor: tokens.onSurfaceMuted,
+          minimumSize: Size(0, height),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          textStyle: AppTextStyles.button(tokens),
+          elevation: 0,
+        ),
+        onPressed: isActive
+            ? () {
+                HapticFeedback.lightImpact();
+                onPressed!();
+              }
+            : null,
+        child: isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
                 ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow:
-              isActive ? tokens.primaryGlow(radius: 16, opacity: 0.3) : null,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: isActive
-                ? () {
-                    HapticFeedback.lightImpact();
-                    onPressed!();
-                  }
-                : null,
-            child: Center(
-              child: isLoading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (icon != null) ...[
-                          icon!,
-                          const SizedBox(width: 8),
-                        ],
-                        Text(
-                          label,
-                          style: AppTextStyles.button(tokens),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[icon!, const SizedBox(width: 8)],
+                  Flexible(child: Text(label, textAlign: TextAlign.center)),
+                ],
+              ),
       ),
     );
   }
@@ -287,7 +274,10 @@ class GlassCard extends StatelessWidget {
       child: Container(
         padding: padding,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: opacity),
+          color: Color.alphaBlend(
+            tokens.glassOverlay.withValues(alpha: opacity),
+            tokens.surface,
+          ),
           borderRadius: BorderRadius.circular(borderRadius),
           border: Border.all(color: tokens.glassStroke, width: 1),
         ),
@@ -348,7 +338,7 @@ class LockedPremiumCard extends StatelessWidget {
             ),
           ),
           if (onPreview != null)
-            CosmicGhostButton(label: 'Dene', onPressed: onPreview),
+            CosmicGhostButton(label: "Premium'ı incele", onPressed: onPreview),
         ],
       ),
     );

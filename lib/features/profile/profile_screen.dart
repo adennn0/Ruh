@@ -1,16 +1,23 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:share_plus/share_plus.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/theme/theme.dart';
 import '../../core/entitlement/entitlement.dart';
+import '../../core/preferences/app_preferences.dart';
+import '../../data/repositories/streak_repository.dart';
+import '../../data/db/app_database.dart';
 import '../../data/repositories/user_profile_repository.dart';
+import '../../domain/models/enums.dart';
+import '../../domain/services/notification_scheduler.dart';
+import '../../features/home/home_screen.dart';
+import '../companion/companion_profile.dart';
 import '../../widgets/cosmic_widgets.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -22,6 +29,216 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final String _version = '1.0.0 (Geliştirme)';
+
+  Future<void> _saveProfile(UserProfile profile) async {
+    await ref.read(userProfileRepositoryProvider).saveProfile(profile);
+    ref.read(userProfileProvider.notifier).state = profile;
+    ref.invalidate(todayContentProvider);
+    await rebuildNotificationWindow(ref);
+  }
+
+  Future<void> _editDisplayName(UserProfile profile) async {
+    final controller = TextEditingController(text: profile.displayName ?? '');
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hitap Adı'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 40,
+          decoration:
+              const InputDecoration(labelText: 'Sana nasıl hitap edelim?'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('İptal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null) return;
+    await ref.read(userProfileRepositoryProvider).saveDisplayName(name);
+    final updated = ref.read(userProfileRepositoryProvider).loadProfile();
+    if (updated == null) return;
+    ref.read(userProfileProvider.notifier).state = updated;
+  }
+
+  Future<void> _editBirthDate(UserProfile profile) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: profile.birthDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      helpText: 'Doğum tarihini seç',
+    );
+    if (date == null) return;
+    await _saveProfile(profile.copyWith(birthDate: date));
+  }
+
+  Future<void> _selectTone(UserProfile profile) async {
+    final tone = await showModalBottomSheet<MessageTone>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final tone in MessageTone.values)
+              ListTile(
+                title: Text(tone.displayName),
+                subtitle: Text(tone.subtitle),
+                trailing: tone == profile.tone ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(context, tone),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (tone == null) return;
+    await _saveProfile(profile.copyWith(tone: tone));
+  }
+
+  Future<void> _selectTheme(UserProfile profile, bool isPremium) async {
+    final theme = await showModalBottomSheet<AppThemeId>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).extension<CosmicTokens>()!.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * .82,
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .extension<CosmicTokens>()!
+                      .onSurfaceMuted,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Görünümünü seç',
+                    style: AppTextStyles.h2(
+                      Theme.of(context).extension<CosmicTokens>()!,
+                    ),
+                  ),
+                ),
+              ),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: AppThemeId.values.length,
+                  itemBuilder: (context, index) {
+                    final theme = AppThemeId.values[index];
+                    return ListTile(
+                      minTileHeight: 64,
+                      title: Text(theme.displayName),
+                      subtitle: Text(theme.description),
+                      trailing: theme.name == profile.themeId
+                          ? const Icon(Icons.check)
+                          : theme.isPremium
+                              ? const PremiumBadge(compact: true)
+                              : null,
+                      onTap: theme.isPremium && !isPremium
+                          ? null
+                          : () => Navigator.pop(context, theme),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (theme == null) return;
+    await _saveProfile(profile.copyWith(themeId: theme.name));
+  }
+
+  void _showStreak(BuildContext context, WidgetRef ref) {
+    final tokens = Theme.of(context).extension<CosmicTokens>()!;
+    final streak = ref.read(streakResultProvider).valueOrNull;
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Işık Serin', style: AppTextStyles.h2(tokens)),
+        content: Text(
+          streak == null
+              ? 'Seri bilgisi şu anda yüklenemedi.'
+              : 'Mevcut seri: ${streak.currentStreak} gün\n'
+                  'En uzun seri: ${streak.longestStreak} gün\n'
+                  'Toplam ışık günü: ${streak.totalDays}',
+          style: AppTextStyles.body(tokens),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Kapat'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteChatHistory() async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sohbet geçmişi silinsin mi?'),
+        content: const Text(
+            'Bu işlem kayıtlı sohbet mesajlarını kalıcı olarak siler.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Vazgeç')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Sil')),
+        ],
+      ),
+    );
+    if (shouldDelete != true || !mounted) return;
+    await ref
+        .read(appDatabaseProvider)
+        .delete(ref.read(appDatabaseProvider).chatMessageTable)
+        .go();
+    if (mounted) showCosmicSnackbar(context, 'Sohbet geçmişi silindi.');
+  }
+
+  void _showAboutDialog(String title, String body) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Kapat'))
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -39,6 +256,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       'birthMinute': profile.birthMinute,
       'tone': profile.tone.name,
       'themeId': profile.themeId,
+      'companion': ref.read(companionProfileProvider).toJson(),
     };
 
     final jsonStr = jsonEncode(data);
@@ -80,6 +298,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<CosmicTokens>()!;
+    final birthDataSharing = ref.watch(birthDataSharingProvider);
+    final intentionSharing = ref.watch(intentionSharingProvider);
+    final reduceMotion = ref.watch(reduceMotionProvider);
+    final hapticsEnabled = ref.watch(hapticsEnabledProvider);
+    final widgetPrivacyMode = ref.watch(widgetPrivacyModeProvider);
+    final showStreakOnWidget = ref.watch(showStreakOnWidgetProvider);
+    final companion = ref.watch(companionProfileProvider);
     final profile = ref.watch(userProfileProvider);
     final isPremium = ref.watch(isPremiumProvider);
 
@@ -155,8 +380,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   style: AppTextStyles.h1(tokens),
                 ),
                 const SizedBox(height: 8),
-                ContentSourceBadge(
-                    label: profile.zodiacSign.name.toUpperCase()),
+                ContentSourceBadge(label: profile.zodiacSign.displayName),
                 const SizedBox(height: 24),
 
                 // Bilgilerim
@@ -166,13 +390,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   icon: PhosphorIcons.calendar(),
                   subtitle:
                       '${profile.birthDate.day}/${profile.birthDate.month}/${profile.birthDate.year}',
-                  onTap: () {},
+                  onTap: () => _editBirthDate(profile),
                 ),
                 buildListTile(
                   title: 'Hitap Adı',
                   icon: PhosphorIcons.user(),
                   subtitle: profile.displayName ?? 'Kozmik Yolcu',
-                  onTap: () {},
+                  onTap: () => _editDisplayName(profile),
                 ),
 
                 // Kozmik Kimliğim
@@ -183,10 +407,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      CosmicChip(label: 'Burç: ${profile.zodiacSign.name}'),
-                      const CosmicChip(label: 'Element: Ateş'),
-                      const CosmicChip(label: 'Gezegen: Mars'),
-                      const CosmicChip(label: 'Taş: Yakut'),
+                      CosmicChip(
+                          label: 'Burç: ${profile.zodiacSign.displayName}'),
+                      CosmicChip(
+                        label:
+                            'Element: ${profile.zodiacSign.element.displayName}',
+                      ),
+                      CosmicChip(
+                        label: 'Gezegen: ${profile.zodiacSign.rulingPlanet}',
+                      ),
+                      CosmicChip(
+                        label: 'Taş: ${profile.zodiacSign.primaryStone}',
+                      ),
                     ],
                   ),
                 ),
@@ -196,24 +428,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   title: 'Mesaj Tonu',
                   icon: PhosphorIcons.chatCircle(),
                   subtitle: profile.tone.displayName,
-                  onTap: () {},
+                  onTap: () => _selectTone(profile),
                 ),
                 buildListTile(
                   title: 'Tema',
                   icon: PhosphorIcons.palette(),
                   subtitle: profile.themeId,
-                  onTap: () {},
+                  onTap: () => _selectTheme(profile, isPremium),
                 ),
                 buildListTile(
                   title: 'Işık Serisi',
                   icon: PhosphorIcons.fire(),
-                  subtitle: '7 Günlük Seri',
-                  onTap: () {},
+                  subtitle: 'Seri ve toplam gün bilgisi',
+                  onTap: () => _showStreak(context, ref),
                 ),
                 buildListTile(
-                  title: 'Kedim',
-                  icon: PhosphorIcons.cat(),
-                  isSoon: true,
+                  title: 'Kişisel Ruh Hayvanım',
+                  icon: PhosphorIcons.compass(),
+                  subtitle: profile.zodiacSign.primarySpiritAnimal,
+                  onTap: () => context.push('/discover/spirit-animal'),
+                ),
+                buildListTile(
+                  title: 'Eşlikçim',
+                  icon: PhosphorIcons.pawPrint(),
+                  subtitle: '${companion.name} · ${companion.species}',
+                  onTap: () => context.push('/companion'),
                 ),
                 buildListTile(
                   title: 'Bildirimler',
@@ -225,21 +464,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 SwitchListTile(
                   title: Text('Doğum verimi kullanmasına izin ver',
                       style: AppTextStyles.body(tokens)),
-                  value: true,
+                  value: birthDataSharing,
                   activeTrackColor: tokens.accentPrimary,
-                  onChanged: (val) {},
+                  onChanged: (val) =>
+                      saveBooleanPreference(ref, 'ai_use_birth_data', val),
                 ),
                 SwitchListTile(
                   title: Text('Niyetlerimi bilsin',
                       style: AppTextStyles.body(tokens)),
-                  value: true,
+                  value: intentionSharing,
                   activeTrackColor: tokens.accentPrimary,
-                  onChanged: (val) {},
+                  onChanged: (val) =>
+                      saveBooleanPreference(ref, 'ai_know_intentions', val),
                 ),
                 buildListTile(
                   title: 'Sohbet geçmişini sil',
                   icon: PhosphorIcons.trash(),
-                  onTap: () {},
+                  onTap: _confirmDeleteChatHistory,
                 ),
 
                 buildSectionTitle('Hesap ve Güvenlik'),
@@ -247,7 +488,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   title: 'Premium',
                   icon: PhosphorIcons.star(),
                   trailing: const PremiumBadge(compact: true),
-                  isSoon: true,
+                  onTap: () => context.push('/premium'),
                 ),
                 buildListTile(
                   title: 'Uygulama Kilidi',
@@ -259,22 +500,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 SwitchListTile(
                   title:
                       Text('Hareketi azalt', style: AppTextStyles.body(tokens)),
-                  value: false,
+                  value: reduceMotion,
                   activeTrackColor: tokens.accentPrimary,
-                  onChanged: (val) {},
+                  onChanged: (val) =>
+                      saveBooleanPreference(ref, 'reduce_motion', val),
                 ),
                 SwitchListTile(
                   title: Text('Titreşim', style: AppTextStyles.body(tokens)),
-                  value: true,
+                  value: hapticsEnabled,
                   activeTrackColor: tokens.accentPrimary,
-                  onChanged: (val) {},
+                  onChanged: (val) =>
+                      saveBooleanPreference(ref, 'haptics_enabled', val),
                 ),
                 SwitchListTile(
                   title: Text('Widget gizli mod',
                       style: AppTextStyles.body(tokens)),
-                  value: false,
+                  subtitle: Text(
+                    'Açıkken genel bir olumlama gösterilir.',
+                    style: AppTextStyles.caption(tokens),
+                  ),
+                  value: widgetPrivacyMode,
                   activeTrackColor: tokens.accentPrimary,
-                  onChanged: (val) {},
+                  onChanged: (val) =>
+                      saveBooleanPreference(ref, 'widget_privacy_mode', val),
+                ),
+                SwitchListTile(
+                  title: Text('Widget’ta Işık Serisini göster',
+                      style: AppTextStyles.body(tokens)),
+                  value: showStreakOnWidget,
+                  activeTrackColor: tokens.accentPrimary,
+                  onChanged: (val) =>
+                      saveBooleanPreference(ref, 'widget_show_streak', val),
+                ),
+                buildListTile(
+                  title: 'Widget ekleme yönergesi',
+                  icon: PhosphorIcons.squaresFour(),
+                  onTap: () => _showAboutDialog(
+                    'Ana ekrana widget ekle',
+                    'Telefonunun ana ekranında boş bir alana basılı tut. Widget’lar menüsünü açıp “Ruhun Parlıyor”u bul ve küçük ya da geniş boyutu ana ekrana sürükle. Widget içeriği uygulama açıldığında yenilenir; Android pil ve arka plan sınırları nedeniyle anlık güncelleme garanti edilmez.',
+                  ),
                 ),
                 buildListTile(
                   title: 'Verilerimi Dışa Aktar',
@@ -295,17 +559,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 buildListTile(
                   title: 'Gizlilik ve KVKK',
                   icon: PhosphorIcons.shieldCheck(),
-                  onTap: () {},
+                  onTap: () => _showAboutDialog(
+                    'Gizlilik ve KVKK',
+                    'Ruhun Parlıyor’daki günlük içerikler ve astrolojik değerler kişisel rehberlik amacı taşır; kesinlik veya sağlık vaadi sunmaz. Hesap verilerini bu ekrandaki dışa aktarma ve veri silme kontrolleriyle yönetebilirsin.',
+                  ),
                 ),
                 buildListTile(
                   title: 'Kullanım Koşulları',
                   icon: PhosphorIcons.fileText(),
-                  onTap: () {},
+                  onTap: () => _showAboutDialog(
+                    'Kullanım Koşulları',
+                    'Uygulama geliştirme aşamasındadır. İçerikler kişisel farkındalık ve eğlence amaçlıdır; profesyonel danışmanlık yerine geçmez.',
+                  ),
                 ),
                 buildListTile(
                   title: 'Geri bildirim gönder',
                   icon: PhosphorIcons.envelopeSimple(),
-                  onTap: () {},
+                  onTap: () =>
+                      Share.share('Ruhun Parlıyor için geri bildirimim:'),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),

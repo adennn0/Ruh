@@ -90,6 +90,15 @@ Tüm katmanlar: `assets/cat/` dizini, 512×512 WebP, ortak çıpa noktaları `an
 
 ---
 
+## Kişisel Eşlikçi Görseli (Aşama 5)
+
+Durum: Hayvan türüne göre sembolik Phosphor ikon avatarı ve kozmetik yuva katmanları uygulamada çalışıyor; aşağıdaki yüksek kaliteli, tutarlı 3D hayvan asset seti henüz üretilmedi. İkon avatarı nihai illüstrasyon gibi sunulmamalı.
+
+### `assets/companion/<animal>.webp` (@1x: 512×512 · @2x: 1024×1024, şeffaf WebP)
+**Amaç:** Kullanıcının seçtiği ruh hayvanı eşlikçisinin ana ekran ve profil görünümü. En azından Bölüm 12.3'teki 12 türü kapsamalı; hayvan pozları tutarlı çıpa ve ışık yönü kullanmalı. Görsel gelene kadar uygulamadaki tema tokenlı parıltı simgesi geçici placeholder'dır; tamamlanmış hayvan illüstrasyonu gibi sunulmaz.
+**Üretim prompt'u (İngilizce):**
+> Create an elegant, calm, adult-oriented stylized [ANIMAL] companion for a spiritual reflection app. Distinct recognizable anatomy, gentle presence, subtle translucent amethyst and pearl rim light, refined 3D render with soft volumetric depth, centered full-body pose, transparent background, no text, no accessories baked into the base art, 1024x1024 WebP. Keep the same camera angle, scale, and lighting across all animal variants.
+
 ## Tema Arka Planları
 `assets/themes/bg_<themeId>.webp` (1080×2400, WebP, düşük dosya boyutu)
 

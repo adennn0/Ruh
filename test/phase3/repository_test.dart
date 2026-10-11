@@ -25,6 +25,10 @@ void main() {
         () => expect(AppLimits.premiumMaxActiveIntentions, -1));
     test('notificationWindowDays = 7',
         () => expect(AppLimits.notificationWindowDays, 7));
+    test('freeMaxDailyNotifications = 5',
+        () => expect(AppLimits.freeMaxDailyNotifications, 5));
+    test('premiumMaxDailyNotifications = 12',
+        () => expect(AppLimits.premiumMaxDailyNotifications, 12));
     test('minContentPerSignTone = 7',
         () => expect(AppLimits.minContentPerSignTone, 7));
     test('streakRestDaysPerWeek = 1',

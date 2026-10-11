@@ -2,41 +2,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/theme.dart';
 import '../../domain/astrology/astrology_engine.dart';
+import '../../domain/astrology/moon_phase_calculator.dart';
 import '../../widgets/cosmic_widgets.dart';
 
-/// Ay evresine karsilik gelen niyet temasi
+/// Astronomik evreden ayrı, sembolik düşünme teması.
 const _phaseThemes = {
   MoonPhase.newMoon: (
-    'Yeni Ay - Niyet Baslat',
-    'Yeni baslangiclar icin guclu bir zaman. Ne yaratmak istiyorsun?'
+    'Yeni Ay · Niyet başlat',
+    'Yeni bir başlangıç için hangi küçük adımı seçebilirsin?'
   ),
   MoonPhase.waxingCrescent: (
-    'Hilal - Tohumla',
-    'Niyetinin filizlendigi bu donemde sabirla suluyorsun.'
+    'Hilal · Tohumu besle',
+    'Niyetini destekleyecek küçük ve sürdürülebilir bir adım düşün.'
   ),
   MoonPhase.firstQuarter: (
-    'Ilk Ceyrek - Eyleme Gec',
-    'Engelleri asmak icin enerji yuksek. Bir adim at.'
+    'İlk Dördün · Eyleme geç',
+    'Karşına çıkan bir engel için deneyebileceğin seçenek ne?'
   ),
   MoonPhase.waxingGibbous: (
-    'Buyuyen Ay - Ince Ayar',
-    'Ilerlemeyi degerlendirme ve gerekirse yonunu duzeltme zamani.'
+    'Büyüyen Ay · İnce ayar',
+    'İlerlemeni gözden geçir; gerekiyorsa planını yeniden düzenle.'
   ),
   MoonPhase.fullMoon: (
-    'Dolunay - Farkindalik ve Birakma',
-    'Neyin meyve verdigini gor. Artik ise yaramayani birakmaya hazir misin?'
+    'Dolunay · Fark et ve bırak',
+    'Nelerin işe yaradığını ve neleri geride bırakmak istediğini düşün.'
   ),
   MoonPhase.waningGibbous: (
-    'Azalan Ay - Paylas',
-    'Ogrendiklerini, kazandiklarini paylasma vakti.'
+    'Küçülen Ay · Paylaş',
+    'Öğrendiklerinden birini güvendiğin biriyle paylaşabilirsin.'
   ),
   MoonPhase.lastQuarter: (
-    'Son Ceyrek - Serbest Birak',
-    'Hangi aliskanlik veya dusuncenin zamani doldu?'
+    'Son Dördün · Sadeleş',
+    'Hangi alışkanlığı veya düşünceyi artık taşımak istemiyorsun?'
   ),
   MoonPhase.waningCrescent: (
-    'Eski Hilal - Dinlen',
-    'Yeni dongu icin hazirlan. Dinlenme, buyumenin parcasidir.'
+    'Küçük Hilal · Dinlen',
+    'Kendine kısa bir mola ver; dinlenmek de günlük yaşamın bir parçası.'
   ),
 };
 
@@ -53,6 +54,14 @@ class MoonCalendarScreen extends ConsumerWidget {
 
     // Ay takvimi: onumuzdeki 30 gun
     final calendarDays = List.generate(30, (i) => now.add(Duration(days: i)));
+    final eventsByDate = <String, MoonPhaseEvent>{};
+    for (final event in const MoonPhaseCalculator().eventsBetween(
+      now,
+      now.add(const Duration(days: 30)),
+    )) {
+      final date = event.localTime;
+      eventsByDate['${date.year}-${date.month}-${date.day}'] = event;
+    }
 
     return Scaffold(
       backgroundColor: tokens.background,
@@ -91,7 +100,7 @@ class MoonCalendarScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Bugun',
+                            'Bugün',
                             style: AppTextStyles.caption(tokens).copyWith(
                               color: tokens.onSurfaceMuted,
                             ),
@@ -121,7 +130,7 @@ class MoonCalendarScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '~ Yaklasik hesaplama; gercek ay evresi +/-1 gun farkli olabilir.',
+                  'Önemli evre anları cihazının yerel saatinde gösterilir. Yorumlar semboliktir.',
                   style: AppTextStyles.caption(tokens).copyWith(
                     color: tokens.onSurfaceMuted,
                     fontStyle: FontStyle.italic,
@@ -133,7 +142,7 @@ class MoonCalendarScreen extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // 30 gunluk takvim
-          Text('Onumuzdeki 30 Gun', style: AppTextStyles.h2(tokens)),
+          Text('Önümüzdeki 30 gün', style: AppTextStyles.h2(tokens)),
           const SizedBox(height: 12),
           ...calendarDays.map((day) {
             final phase = engine.moonPhase(day);
@@ -143,6 +152,7 @@ class MoonCalendarScreen extends ConsumerWidget {
             return _DayRow(
               day: day,
               phase: phase,
+              event: eventsByDate['${day.year}-${day.month}-${day.day}'],
               isToday: isToday,
               tokens: tokens,
             );
@@ -151,7 +161,7 @@ class MoonCalendarScreen extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // Evre anlamlari rehberi
-          Text('Evre Anlamlari', style: AppTextStyles.h2(tokens)),
+          Text('Sembolik düşünme temaları', style: AppTextStyles.h2(tokens)),
           const SizedBox(height: 12),
           ...MoonPhase.values.map((phase) {
             final theme = _phaseThemes[phase];
@@ -197,21 +207,34 @@ class _DayRow extends StatelessWidget {
   const _DayRow({
     required this.day,
     required this.phase,
+    this.event,
     required this.isToday,
     required this.tokens,
   });
 
   final DateTime day;
   final MoonPhase phase;
+  final MoonPhaseEvent? event;
   final bool isToday;
   final CosmicTokens tokens;
 
   @override
   Widget build(BuildContext context) {
-    const weekdays = ['', 'Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt', 'Paz'];
+    const weekdays = ['', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
     const months = [
-      '', 'Oca', 'Sub', 'Mar', 'Nis', 'May', 'Haz',
-      'Tem', 'Agu', 'Eyl', 'Eki', 'Kas', 'Ara'
+      '',
+      'Oca',
+      'Şub',
+      'Mar',
+      'Nis',
+      'May',
+      'Haz',
+      'Tem',
+      'Ağu',
+      'Eyl',
+      'Eki',
+      'Kas',
+      'Ara'
     ];
 
     return Container(
@@ -245,12 +268,20 @@ class _DayRow extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Text(phase.symbol, style: const TextStyle(fontSize: 18)),
+          Text(event?.phase.symbol ?? phase.symbol,
+              style: const TextStyle(fontSize: 18)),
           const SizedBox(width: 8),
-          Text(
-            phase.displayName,
-            style: AppTextStyles.caption(tokens).copyWith(
-              color: tokens.onSurfaceSubtle,
+          Flexible(
+            child: Text(
+              event == null
+                  ? phase.displayName
+                  : '${event!.phase.displayName} · ${event!.localTime.hour.toString().padLeft(2, '0')}:${event!.localTime.minute.toString().padLeft(2, '0')}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: AppTextStyles.caption(tokens).copyWith(
+                color: tokens.onSurfaceSubtle,
+              ),
             ),
           ),
           if (isToday) ...[

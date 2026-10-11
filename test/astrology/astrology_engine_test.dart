@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ruhun_parliyor/domain/astrology/astrology_engine.dart';
+import 'package:ruhun_parliyor/domain/astrology/moon_phase_calculator.dart';
 
 void main() {
   const engine = AstrologyEngineImpl();
@@ -109,29 +110,41 @@ void main() {
     });
   });
 
-  group('Ay Evresi Hesabı (±1 gün tolerans)', () {
-    // Bilinen referans tarihler
-    test('2000-01-06 civarı Yeni Ay', () {
-      final phase = engine.moonPhase(DateTime(2000, 1, 6));
+  group('Ay Evresi Hesabı (USNO referansları)', () {
+    test('2000-01-06 18:14 UTC Yeni Ay', () {
+      final phase = engine.moonPhase(DateTime.utc(2000, 1, 6, 18, 15));
       expect(phase, MoonPhase.newMoon);
     });
 
-    test('2000-01-21 civarı Dolunay', () {
-      // 2000-01-21: bilinen dolunay
-      final phase = engine.moonPhase(DateTime(2000, 1, 21));
-      expect(
-        [MoonPhase.fullMoon, MoonPhase.waxingGibbous, MoonPhase.waningGibbous],
-        contains(phase),
-      );
+    test('2000-01-21 04:40 UTC Dolunay', () {
+      final phase = engine.moonPhase(DateTime.utc(2000, 1, 21, 4, 42));
+      expect(phase, MoonPhase.fullMoon);
     });
 
-    test('2024-01-11 Yeni Ay (±1 gün)', () {
-      // Bilinen yeni ay: 2024-01-11
-      final phase = engine.moonPhase(DateTime(2024, 1, 11));
-      expect(
-        [MoonPhase.newMoon, MoonPhase.waxingCrescent],
-        contains(phase),
+    test('2024-01-11 11:57 UTC Yeni Ay', () {
+      final phase = engine.moonPhase(DateTime.utc(2024, 1, 11, 11, 58));
+      expect(phase, MoonPhase.newMoon);
+    });
+
+    test('2026 USNO primary phases match within two minutes', () {
+      const calculator = MoonPhaseCalculator();
+      final events = calculator.eventsBetween(
+        DateTime.utc(2026, 10, 10),
+        DateTime.utc(2026, 11, 2),
       );
+      final references = [
+        (MoonPhase.newMoon, DateTime.utc(2026, 10, 10, 15, 50)),
+        (MoonPhase.firstQuarter, DateTime.utc(2026, 10, 18, 16, 12)),
+        (MoonPhase.fullMoon, DateTime.utc(2026, 10, 26, 4, 12)),
+        (MoonPhase.lastQuarter, DateTime.utc(2026, 11, 1, 20, 28)),
+      ];
+      for (final (phase, expectedUtc) in references) {
+        final event = events.firstWhere((item) =>
+            item.phase == phase &&
+            item.localTime.toUtc().day == expectedUtc.day);
+        expect(event.localTime.toUtc().difference(expectedUtc).inSeconds.abs(),
+            lessThanOrEqualTo(120));
+      }
     });
   });
 

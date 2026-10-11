@@ -4,6 +4,7 @@ library astrology_engine;
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'moon_phase_calculator.dart';
 
 // ─── Burç ────────────────────────────────────────────────────────────────────
 enum ZodiacSign {
@@ -278,7 +279,7 @@ abstract class AstrologyEngine {
   /// Doğum tarihinden güneş burcu hesapla (deterministik)
   CosmicIdentity sunSign(DateTime birthDate);
 
-  /// Verilen tarih için ay evresi hesapla (yaklaşık, ±1 gün tolerans)
+  /// Verilen tarih ve saat için yerel takvim anındaki ay evresini hesapla.
   MoonPhase moonPhase(DateTime date);
 
   /// Ruh hayvanı adı (burç + doğum saati dilimi)
@@ -368,45 +369,9 @@ class AstrologyEngineImpl implements AstrologyEngine {
     return month > sm && month < em;
   }
 
-  // ─── Ay evresi hesabı ─────────────────────────────────────────────────────
-  /// Referans yeni ay: 2000-01-06 18:14 UTC
-  static const _referenceNewMoon = 2451549.2597222;
-  static const _synodicMonth = 29.530588853;
-
   @override
-  MoonPhase moonPhase(DateTime date) {
-    final jd = _julianDay(date);
-    final daysSinceRef = jd - _referenceNewMoon;
-    final cyclePos = daysSinceRef % _synodicMonth;
-    final normalized = cyclePos < 0 ? cyclePos + _synodicMonth : cyclePos;
-    final fraction = normalized / _synodicMonth;
-
-    if (fraction < 0.0625) return MoonPhase.newMoon;
-    if (fraction < 0.1875) return MoonPhase.waxingCrescent;
-    if (fraction < 0.3125) return MoonPhase.firstQuarter;
-    if (fraction < 0.4375) return MoonPhase.waxingGibbous;
-    if (fraction < 0.5625) return MoonPhase.fullMoon;
-    if (fraction < 0.6875) return MoonPhase.waningGibbous;
-    if (fraction < 0.8125) return MoonPhase.lastQuarter;
-    if (fraction < 0.9375) return MoonPhase.waningCrescent;
-    return MoonPhase.newMoon;
-  }
-
-  double _julianDay(DateTime date) {
-    final y = date.year;
-    final m = date.month;
-    final d = date.day + (date.hour + date.minute / 60.0) / 24.0;
-    final a = ((14 - m) / 12).floor();
-    final yr = y + 4800 - a;
-    final mn = m + 12 * a - 3;
-    return d +
-        ((153 * mn + 2) / 5).floor() +
-        365 * yr +
-        (yr / 4).floor() -
-        (yr / 100).floor() +
-        (yr / 400).floor() -
-        32045;
-  }
+  MoonPhase moonPhase(DateTime date) =>
+      const MoonPhaseCalculator().phaseAt(date);
 
   // ─── Ruh hayvanı ──────────────────────────────────────────────────────────
   @override

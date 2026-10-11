@@ -48,11 +48,12 @@ class OnboardingState {
     bool? isLoading,
     String? errorMessage,
     bool clearError = false,
+    bool clearBirthDate = false,
   }) {
     return OnboardingState(
       currentStep: currentStep ?? this.currentStep,
       consentGiven: consentGiven ?? this.consentGiven,
-      birthDate: birthDate ?? this.birthDate,
+      birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
       birthTimeKnown: birthTimeKnown ?? this.birthTimeKnown,
       birthHour: birthHour ?? this.birthHour,
       birthMinute: birthMinute ?? this.birthMinute,
@@ -95,6 +96,34 @@ class OnboardingController extends StateNotifier<OnboardingState> {
       birthDate: date,
       clearError: true,
     );
+  }
+
+  void setBirthDateInput(String input) {
+    final value = input.trim();
+    if (value.isEmpty || value.length < 10) {
+      state = state.copyWith(clearBirthDate: true, clearError: true);
+      return;
+    }
+    final match = RegExp(r'^(\d{2})\.(\d{2})\.(\d{4})$').firstMatch(value);
+    if (match == null) {
+      state = state.copyWith(
+        clearBirthDate: true,
+        errorMessage: 'Tarihi gg.aa.yyyy biçiminde yaz.',
+      );
+      return;
+    }
+    final day = int.parse(match.group(1)!);
+    final month = int.parse(match.group(2)!);
+    final year = int.parse(match.group(3)!);
+    final date = DateTime(year, month, day);
+    if (date.day != day || date.month != month || date.year != year) {
+      state = state.copyWith(
+        clearBirthDate: true,
+        errorMessage: 'Geçerli bir doğum tarihi gir.',
+      );
+      return;
+    }
+    setBirthDate(date);
   }
 
   void setBirthTime(int hour, int minute) {
@@ -144,7 +173,7 @@ class OnboardingController extends StateNotifier<OnboardingState> {
       birthMinute: state.birthMinute,
       displayName: state.displayName,
       tone: state.selectedTone,
-      themeId: 'amethystAurora',
+      themeId: 'pearlMoon',
     );
     await _repo.saveProfile(profile);
     state = state.copyWith(isLoading: false, currentStep: 4); // 4 = done

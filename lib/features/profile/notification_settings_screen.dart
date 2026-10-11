@@ -1,180 +1,92 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/theme/theme.dart';
-import '../../core/limits.dart';
+
 import '../../core/entitlement/entitlement.dart';
+import '../../core/theme/theme.dart';
+import '../../data/repositories/intention_repository.dart';
+import '../../data/repositories/user_profile_repository.dart';
+import '../../domain/services/notification_scheduler.dart';
+import '../../platform/notifications/notifications_adapter.dart';
 import '../../widgets/cosmic_widgets.dart';
-
-// --- State Models ---
-
-class NotificationSettings {
-  const NotificationSettings({
-    this.intentionReminder = false,
-    this.intentionTime = const TimeOfDay(hour: 9, minute: 0),
-    this.timeMoment = false,
-    this.timeMomentTime = const TimeOfDay(hour: 11, minute: 11),
-    this.eveningReview = false,
-    this.eveningReviewTime = const TimeOfDay(hour: 20, minute: 0),
-    this.dailyMessage = false,
-    this.dailyMessageTime = const TimeOfDay(hour: 10, minute: 0),
-    this.quietHoursStart =
-        const TimeOfDay(hour: AppLimits.defaultQuietHoursStart, minute: 0),
-    this.quietHoursEnd =
-        const TimeOfDay(hour: AppLimits.defaultQuietHoursEnd, minute: 0),
-  });
-
-  final bool intentionReminder;
-  final TimeOfDay intentionTime;
-  final bool timeMoment;
-  final TimeOfDay timeMomentTime;
-  final bool eveningReview;
-  final TimeOfDay eveningReviewTime;
-  final bool dailyMessage;
-  final TimeOfDay dailyMessageTime;
-  final TimeOfDay quietHoursStart;
-  final TimeOfDay quietHoursEnd;
-
-  int get activeCount {
-    int count = 0;
-    if (intentionReminder) count++;
-    if (timeMoment) count++;
-    if (eveningReview) count++;
-    if (dailyMessage) count++;
-    return count;
-  }
-
-  NotificationSettings copyWith({
-    bool? intentionReminder,
-    TimeOfDay? intentionTime,
-    bool? timeMoment,
-    TimeOfDay? timeMomentTime,
-    bool? eveningReview,
-    TimeOfDay? eveningReviewTime,
-    bool? dailyMessage,
-    TimeOfDay? dailyMessageTime,
-    TimeOfDay? quietHoursStart,
-    TimeOfDay? quietHoursEnd,
-  }) {
-    return NotificationSettings(
-      intentionReminder: intentionReminder ?? this.intentionReminder,
-      intentionTime: intentionTime ?? this.intentionTime,
-      timeMoment: timeMoment ?? this.timeMoment,
-      timeMomentTime: timeMomentTime ?? this.timeMomentTime,
-      eveningReview: eveningReview ?? this.eveningReview,
-      eveningReviewTime: eveningReviewTime ?? this.eveningReviewTime,
-      dailyMessage: dailyMessage ?? this.dailyMessage,
-      dailyMessageTime: dailyMessageTime ?? this.dailyMessageTime,
-      quietHoursStart: quietHoursStart ?? this.quietHoursStart,
-      quietHoursEnd: quietHoursEnd ?? this.quietHoursEnd,
-    );
-  }
-}
-
-// --- Controller ---
-
-class NotificationSettingsController
-    extends StateNotifier<NotificationSettings> {
-  NotificationSettingsController(this.prefs)
-      : super(const NotificationSettings()) {
-    _load();
-  }
-
-  final SharedPreferences prefs;
-
-  TimeOfDay _parseTime(String? timeStr, TimeOfDay defaultTime) {
-    if (timeStr == null) return defaultTime;
-    final parts = timeStr.split(':');
-    if (parts.length == 2) {
-      return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-    }
-    return defaultTime;
-  }
-
-  String _formatTime(TimeOfDay time) {
-    return '${time.hour}:${time.minute}';
-  }
-
-  void _load() {
-    state = NotificationSettings(
-      intentionReminder: prefs.getBool('notif_intention') ?? false,
-      intentionTime: _parseTime(prefs.getString('notif_intention_time'),
-          const TimeOfDay(hour: 9, minute: 0)),
-      timeMoment: prefs.getBool('notif_time_moment') ?? false,
-      timeMomentTime: _parseTime(prefs.getString('notif_time_moment_time'),
-          const TimeOfDay(hour: 11, minute: 11)),
-      eveningReview: prefs.getBool('notif_evening') ?? false,
-      eveningReviewTime: _parseTime(prefs.getString('notif_evening_time'),
-          const TimeOfDay(hour: 20, minute: 0)),
-      dailyMessage: prefs.getBool('notif_daily_message') ?? false,
-      dailyMessageTime: _parseTime(prefs.getString('notif_daily_message_time'),
-          const TimeOfDay(hour: 10, minute: 0)),
-      quietHoursStart: _parseTime(prefs.getString('notif_quiet_start'),
-          const TimeOfDay(hour: 22, minute: 0)),
-      quietHoursEnd: _parseTime(prefs.getString('notif_quiet_end'),
-          const TimeOfDay(hour: 8, minute: 0)),
-    );
-  }
-
-  Future<bool> updateToggle(String key, bool value, int limit) async {
-    if (value) {
-      // check if we are at limit
-      if (state.activeCount >= limit) {
-        return false;
-      }
-      // Request permission logic would go here in real app
-    }
-
-    await prefs.setBool('notif_$key', value);
-    _load();
-    return true;
-  }
-
-  Future<void> updateTime(String key, TimeOfDay time) async {
-    await prefs.setString('notif_${key}_time', _formatTime(time));
-    _load();
-  }
-
-  Future<void> updateQuietTime(bool isStart, TimeOfDay time) async {
-    final key = isStart ? 'notif_quiet_start' : 'notif_quiet_end';
-    await prefs.setString(key, _formatTime(time));
-    _load();
-  }
-}
-
-final notificationSettingsProvider =
-    StateNotifierProvider<NotificationSettingsController, NotificationSettings>(
-        (ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return NotificationSettingsController(prefs);
-});
-
-// --- Screen ---
+import 'notification_settings.dart';
 
 class NotificationSettingsScreen extends ConsumerWidget {
   const NotificationSettingsScreen({super.key});
 
-  Future<void> _selectTime(BuildContext context, TimeOfDay initialTime,
-      void Function(TimeOfDay) onSelected) async {
+  Future<void> _selectTime(
+    BuildContext context,
+    TimeOfDay initialTime,
+    void Function(TimeOfDay) onSelected,
+  ) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: initialTime,
       builder: (context, child) {
         final tokens = Theme.of(context).extension<CosmicTokens>()!;
+        final base = Theme.of(context);
         return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: ColorScheme.light(
+          data: base.copyWith(
+            colorScheme: base.colorScheme.copyWith(
               primary: tokens.accentPrimary,
               onSurface: tokens.onBackground,
+              surface: tokens.surface,
+            ),
+            timePickerTheme: TimePickerThemeData(
+              backgroundColor: tokens.surface,
+              dialBackgroundColor: tokens.surfaceElevated,
+              dialHandColor: tokens.accentPrimary,
+              hourMinuteColor: tokens.surfaceElevated,
+              hourMinuteTextColor: tokens.onSurface,
+              dayPeriodColor: tokens.surfaceElevated,
+              dayPeriodTextColor: tokens.onSurface,
+              entryModeIconColor: tokens.accentPrimary,
             ),
           ),
           child: child!,
         );
       },
     );
-    if (picked != null) {
-      onSelected(picked);
+    if (picked != null) onSelected(picked);
+  }
+
+  Future<void> _afterChange(BuildContext context, WidgetRef ref) async {
+    final profile = ref.read(userProfileProvider);
+    if (profile == null) return;
+    final settings = ref.read(notificationSettingsProvider);
+    final scheduler = ref.read(notificationSchedulerProvider);
+    if (settings.timeMoment ||
+        settings.intentionReminder ||
+        settings.eveningReview ||
+        settings.dailyMessage) {
+      final granted = await scheduler.enableAndRebuild(
+        profile: profile,
+        settings: settings,
+        entitlement: ref.read(entitlementServiceProvider),
+        personalSalt: ref.read(userProfileRepositoryProvider).contentSalt,
+        intentionTitles: (ref.read(activeIntentionsProvider).valueOrNull ?? [])
+            .map((i) => i.title)
+            .toList(),
+        intentions: ref.read(activeIntentionsProvider).valueOrNull ?? const [],
+      );
+      if (!granted && context.mounted) {
+        showCosmicSnackbar(
+          context,
+          'Bildirim izni olmadan hatırlatıcı kurulamaz. Ayarlardan izin verebilirsin.',
+        );
+      }
+    } else {
+      await scheduler.cancelAll();
     }
+    ref.invalidate(notificationAvailabilityProvider);
+  }
+
+  Future<void> _enableAndRefresh(BuildContext context, WidgetRef ref) async {
+    await ref
+        .read(notificationSettingsProvider.notifier)
+        .updateToggle('time_moment', true);
+    if (!context.mounted) return;
+    await _afterChange(context, ref);
+    ref.invalidate(notificationAvailabilityProvider);
   }
 
   @override
@@ -182,24 +94,26 @@ class NotificationSettingsScreen extends ConsumerWidget {
     final tokens = Theme.of(context).extension<CosmicTokens>()!;
     final state = ref.watch(notificationSettingsProvider);
     final controller = ref.read(notificationSettingsProvider.notifier);
-
     final isPremium = ref.watch(isPremiumProvider);
+    final notificationAvailability =
+        ref.watch(notificationAvailabilityProvider).valueOrNull;
     final maxLimit = ref
         .watch(entitlementServiceProvider)
         .limitFor(AppFeature.dailyNotifications);
 
-    Widget buildSettingRow({
+    Widget extraRow({
       required String title,
+      required String subtitle,
       required String key,
       required bool value,
       required TimeOfDay time,
+      required String timeKey,
     }) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         child: CosmicCard(
           padding: const EdgeInsets.all(16),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Column(
@@ -207,9 +121,13 @@ class NotificationSettingsScreen extends ConsumerWidget {
                   children: [
                     Text(title, style: AppTextStyles.titleSmall(tokens)),
                     const SizedBox(height: 4),
+                    Text(subtitle, style: AppTextStyles.caption(tokens)),
+                    const SizedBox(height: 8),
                     InkWell(
-                      onTap: () => _selectTime(
-                          context, time, (t) => controller.updateTime(key, t)),
+                      onTap: () => _selectTime(context, time, (t) async {
+                        await controller.updateTime(timeKey, t);
+                        if (context.mounted) await _afterChange(context, ref);
+                      }),
                       child: Text(
                         time.format(context),
                         style: AppTextStyles.bodyLarge(tokens).copyWith(
@@ -225,15 +143,9 @@ class NotificationSettingsScreen extends ConsumerWidget {
                 value: value,
                 activeTrackColor: tokens.accentPrimary,
                 onChanged: (val) async {
-                  final success =
-                      await controller.updateToggle(key, val, maxLimit);
+                  await controller.updateToggle(key, val);
                   if (!context.mounted) return;
-                  if (!success && val) {
-                    showCosmicSnackbar(
-                      context,
-                      'Limit ulaşıldı! Premium ile daha fazla bildirim ekleyebilirsiniz.',
-                    );
-                  }
+                  await _afterChange(context, ref);
                 },
               ),
             ],
@@ -251,61 +163,166 @@ class NotificationSettingsScreen extends ConsumerWidget {
       body: ListView(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16),
             child: Text(
-              'Bugün aktif bildirimler: ${state.activeCount}/$maxLimit',
-              style: AppTextStyles.body(tokens).copyWith(
-                color: state.activeCount >= maxLimit && !isPremium
-                    ? tokens.errorColor
-                    : tokens.onSurface,
+              'Kişisel Saat Anı: günde en fazla $maxLimit '
+              '(${isPremium ? 'Premium' : 'Ücretsiz'}). '
+              'Saatler burcuna, tonuna ve niyetlerine göre her gün yeniden seçilir. '
+              'Aynı metin herkese gitmez.',
+              style: AppTextStyles.body(tokens),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: CosmicCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notificationAvailability?.hasPermission == true
+                        ? 'Bildirim durumu'
+                        : 'Bildirim izni gerekli',
+                    style: AppTextStyles.titleSmall(tokens),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    notificationAvailability?.hasPermission == true
+                        ? '${notificationAvailability!.pendingCount} bildirim sıraya alındı.'
+                        : 'İzin verilmediği için çift ve palindrom saat bildirimleri planlanmıyor.',
+                    style: AppTextStyles.body(tokens),
+                  ),
+                  const SizedBox(height: 12),
+                  CosmicPrimaryButton(
+                    label: notificationAvailability?.hasPermission == true
+                        ? 'Planlamayı yenile'
+                        : 'İzin ver ve bildirimleri etkinleştir',
+                    height: 48,
+                    onPressed: () => _enableAndRefresh(context, ref),
+                  ),
+                ],
               ),
             ),
           ),
-          buildSettingRow(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: CosmicCard(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Kişisel Saat Anı',
+                            style: AppTextStyles.titleSmall(tokens)),
+                        const SizedBox(height: 4),
+                        Text(
+                          '11:11, 14:14, 14:41, 22:22 gibi çift ve palindrom saatlerden '
+                          'sana özel bir seçki. Bildirime dokununca o ana özel mesaj açılır.',
+                          style: AppTextStyles.caption(tokens),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: state.timeMoment,
+                    activeTrackColor: tokens.accentPrimary,
+                    onChanged: (val) async {
+                      await controller.updateToggle('time_moment', val);
+                      if (!context.mounted) return;
+                      await _afterChange(context, ref);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          extraRow(
             title: 'Günlük niyet hatırlatıcısı',
+            subtitle: 'Sabit saat; kota dolunca planlanmaz',
             key: 'intention',
             value: state.intentionReminder,
             time: state.intentionTime,
+            timeKey: 'intention',
           ),
-          buildSettingRow(
-            title: 'Saat Anı (11:11)',
-            key: 'time_moment',
-            value: state.timeMoment,
-            time: state.timeMomentTime,
-          ),
-          buildSettingRow(
+          extraRow(
             title: 'Akşam değerlendirmesi',
+            subtitle: 'Günü kapatma hatırlatıcısı',
             key: 'evening',
             value: state.eveningReview,
             time: state.eveningReviewTime,
+            timeKey: 'evening',
           ),
-          buildSettingRow(
+          extraRow(
             title: 'Günlük mesaj hazır',
+            subtitle: 'Burcuna özel günün mesajı',
             key: 'daily_message',
             value: state.dailyMessage,
             time: state.dailyMessageTime,
+            timeKey: 'daily_message',
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: CosmicCard(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Geçmiş niyet hatırlatmaları',
+                            style: AppTextStyles.titleSmall(tokens)),
+                        const SizedBox(height: 4),
+                        Text(
+                            'Aktif niyetlerini 1 gün ve 1 hafta sonra tekrar gözden geçir.',
+                            style: AppTextStyles.caption(tokens)),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: state.pastIntentionReminder,
+                    activeTrackColor: tokens.accentPrimary,
+                    onChanged: (value) async {
+                      await controller.updateToggle('past_intention', value);
+                      if (context.mounted) await _afterChange(context, ref);
+                    },
+                  ),
+                ],
+              ),
+            ),
           ),
           const Divider(height: 32),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text('Sessiz Saatler (Rahatsız Etmeyin)',
-                style: AppTextStyles.title(tokens)),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Sessiz Saatler',
+              style: AppTextStyles.title(tokens),
+            ),
           ),
           const SizedBox(height: 8),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
                 Expanded(
                   child: CosmicCard(
                     padding: const EdgeInsets.all(16),
-                    onTap: () => _selectTime(context, state.quietHoursStart,
-                        (t) => controller.updateQuietTime(true, t)),
+                    onTap: () => _selectTime(
+                      context,
+                      state.quietHoursStart,
+                      (t) async {
+                        await controller.updateQuietTime(true, t);
+                        if (context.mounted) await _afterChange(context, ref);
+                      },
+                    ),
                     child: Column(
                       children: [
                         Text('Başlangıç', style: AppTextStyles.caption(tokens)),
-                        Text(state.quietHoursStart.format(context),
-                            style: AppTextStyles.titleSmall(tokens)),
+                        Text(
+                          state.quietHoursStart.format(context),
+                          style: AppTextStyles.titleSmall(tokens),
+                        ),
                       ],
                     ),
                   ),
@@ -314,13 +331,21 @@ class NotificationSettingsScreen extends ConsumerWidget {
                 Expanded(
                   child: CosmicCard(
                     padding: const EdgeInsets.all(16),
-                    onTap: () => _selectTime(context, state.quietHoursEnd,
-                        (t) => controller.updateQuietTime(false, t)),
+                    onTap: () => _selectTime(
+                      context,
+                      state.quietHoursEnd,
+                      (t) async {
+                        await controller.updateQuietTime(false, t);
+                        if (context.mounted) await _afterChange(context, ref);
+                      },
+                    ),
                     child: Column(
                       children: [
                         Text('Bitiş', style: AppTextStyles.caption(tokens)),
-                        Text(state.quietHoursEnd.format(context),
-                            style: AppTextStyles.titleSmall(tokens)),
+                        Text(
+                          state.quietHoursEnd.format(context),
+                          style: AppTextStyles.titleSmall(tokens),
+                        ),
                       ],
                     ),
                   ),
@@ -329,9 +354,10 @@ class NotificationSettingsScreen extends ConsumerWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16),
             child: Text(
-              'Not: İzin istemeden hiçbir bildirim planlanmaz.',
+              'İzin vermeden bildirim planlanmaz. Metinler kesin gerçekleşme vaadi taşımaz; '
+              'sembolik bir durak ve niyet hatırlatıcısıdır.',
               style: AppTextStyles.caption(tokens)
                   .copyWith(fontStyle: FontStyle.italic),
               textAlign: TextAlign.center,
@@ -342,3 +368,24 @@ class NotificationSettingsScreen extends ConsumerWidget {
     );
   }
 }
+
+class NotificationAvailability {
+  const NotificationAvailability({
+    required this.hasPermission,
+    required this.pendingCount,
+  });
+
+  final bool hasPermission;
+  final int pendingCount;
+}
+
+final notificationAvailabilityProvider =
+    FutureProvider<NotificationAvailability>((ref) async {
+  final adapter = ref.watch(notificationsAdapterProvider);
+  final hasPermission = await adapter.hasPermission();
+  final pendingCount = hasPermission ? await adapter.pendingCount() : 0;
+  return NotificationAvailability(
+    hasPermission: hasPermission,
+    pendingCount: pendingCount,
+  );
+});

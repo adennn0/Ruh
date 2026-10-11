@@ -1,28 +1,117 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/router/app_router.dart';
+import '../../core/preferences/app_preferences.dart';
 import '../../core/theme/theme.dart';
+import '../../data/db/app_database.dart';
 import '../../data/repositories/user_profile_repository.dart';
 import '../../data/repositories/streak_repository.dart';
 import '../../data/local_content/local_content_service.dart';
 import '../../domain/astrology/astrology_engine.dart';
 import '../../domain/models/content_models.dart';
+import '../../platform/widget/home_widget_adapter.dart';
+import '../companion/companion_profile.dart';
+import '../companion/companion_avatar.dart';
+import 'greeting.dart';
 import '../../widgets/cosmic_widgets.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
+  Timer? _clockTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleClockRefresh();
+  }
+
+  void _scheduleClockRefresh() {
+    _clockTimer?.cancel();
+    final now = DateTime.now();
+    final untilNextMinute = const Duration(minutes: 1) -
+        Duration(seconds: now.second, milliseconds: now.millisecond);
+    _clockTimer = Timer(untilNextMinute, () {
+      if (!mounted) return;
+      setState(() {});
+      _scheduleClockRefresh();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _clockTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<CosmicTokens>()!;
     final profile = ref.watch(userProfileProvider);
     final streakAsync = ref.watch(streakResultProvider);
     final contentAsync = ref.watch(todayContentProvider);
+    final widgetPrivacyMode = ref.watch(widgetPrivacyModeProvider);
+    final showStreakOnWidget = ref.watch(showStreakOnWidgetProvider);
 
     final now = DateTime.now();
-    final greeting = _greeting(now.hour, profile?.displayName);
+    final greeting = greetingFor(now, profile?.displayName);
+
+    final todayContent = contentAsync.valueOrNull;
+    if (profile != null && todayContent != null) {
+      final privateMode = widgetPrivacyMode;
+      final streakCount = streakAsync.valueOrNull?.currentStreak;
+      String toHex(Color color) =>
+          '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(
+          ref.read(homeWidgetAdapterProvider).updateSnapshot(
+                WidgetSnapshot(
+                  localDate:
+                      '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+                  headline: privateMode
+                      ? 'Bugün kendine nazik davran.'
+                      : todayContent.affirmation,
+                  body: privateMode
+                      ? 'Küçük bir nefes arası iyi gelebilir.'
+                      : todayContent.message,
+                  moonPhaseLabel:
+                      const AstrologyEngineImpl().moonPhase(now).displayName,
+                  streakCount:
+                      !privateMode && showStreakOnWidget ? streakCount : null,
+                  themeId: profile.themeId,
+                  accentColors: [
+                    toHex(tokens.surface),
+                    toHex(tokens.onSurface),
+                    toHex(tokens.accentPrimary),
+                    toHex(tokens.accentSecondary),
+                  ],
+                  privacyMode: privateMode,
+                  contentSource: privateMode ? 'local' : todayContent.source,
+                ),
+              ),
+        );
+      });
+    }
 
     return Scaffold(
       backgroundColor: tokens.background,
@@ -38,7 +127,7 @@ class HomeScreen extends ConsumerWidget {
               IconButton(
                 icon: Icon(PhosphorIcons.bell(PhosphorIconsStyle.light),
                     color: tokens.onSurfaceSubtle),
-                onPressed: () {},
+                onPressed: () => context.push(AppRoutes.notificationSettings),
                 tooltip: 'Bildirimler',
               ),
             ],
@@ -77,11 +166,15 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // ── 5. Hızlı eylemler ─────────────────────────────────────
+                // ── 5. Kişisel eşlikçi ────────────────────────────────────
+                const _CompanionCard(),
+                const SizedBox(height: 16),
+
+                // ── 6. Hızlı eylemler ─────────────────────────────────────
                 _QuickActionsRow(tokens: tokens),
                 const SizedBox(height: 24),
 
-                // ── 6. Keşfet önizlemesi ──────────────────────────────────
+                // ── 7. Keşfet önizlemesi ──────────────────────────────────
                 _DiscoverPreview(tokens: tokens, profile: profile),
               ]),
             ),
@@ -90,14 +183,47 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
-  String _greeting(int hour, String? name) {
-    final prefix = hour < 12
-        ? 'Günaydın'
-        : hour < 18
-            ? 'İyi günler'
-            : 'İyi akşamlar';
-    return name != null && name.isNotEmpty ? '$prefix, $name ✨' : '$prefix ✨';
+class _CompanionCard extends ConsumerWidget {
+  const _CompanionCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = Theme.of(context).extension<CosmicTokens>()!;
+    final companion = ref.watch(companionProfileProvider);
+    return Semantics(
+      button: true,
+      label: 'Kişisel eşlikçin ${companion.name}, ${companion.species}',
+      child: CosmicCard(
+        onTap: () => context.push(AppRoutes.companion),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            CompanionAvatar(
+              profile: companion,
+              tokens: tokens,
+              size: 52,
+              glow: false,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(companion.name, style: AppTextStyles.titleSmall(tokens)),
+                  Text(
+                    '${companion.species} · Kişisel eşlikçin',
+                    style: AppTextStyles.caption(tokens),
+                  ),
+                ],
+              ),
+            ),
+            Icon(PhosphorIcons.caretRight(), color: tokens.onSurfaceMuted),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -258,6 +384,7 @@ class _HeroMessageCard extends ConsumerWidget {
     final message =
         content?.message ?? 'Bugün de yolculuğuna devam ediyorsun. 🌟';
     final source = content?.source ?? 'local';
+    final contentId = content?.contentKey ?? _todayContentKey();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -320,29 +447,32 @@ class _HeroMessageCard extends ConsumerWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              _ActionIconBtn(
-                icon: PhosphorIcons.heart(PhosphorIconsStyle.light),
-                tooltip: 'Favorile',
+              _FavoriteButton(
+                contentType: 'message',
+                contentId: contentId,
+                text: message,
                 tokens: tokens,
-                onPressed: () {},
               ),
               const SizedBox(width: 8),
               _ActionIconBtn(
                 icon: PhosphorIcons.copy(PhosphorIconsStyle.light),
                 tooltip: 'Kopyala',
                 tokens: tokens,
-                onPressed: () {},
+                onPressed: () => _copyContent(context, message),
               ),
               const SizedBox(width: 8),
               _ActionIconBtn(
                 icon: PhosphorIcons.shareNetwork(PhosphorIconsStyle.light),
                 tooltip: 'Paylaş',
                 tokens: tokens,
-                onPressed: () {},
+                onPressed: () => Share.share(message),
               ),
               const Spacer(),
               TextButton(
-                onPressed: () {},
+                onPressed: content == null
+                    ? null
+                    : () =>
+                        context.push(AppRoutes.dailyMessage, extra: content),
                 child: Text(
                   'Tamamını oku →',
                   style: AppTextStyles.caption(tokens).copyWith(
@@ -378,8 +508,8 @@ class _ActionIconBtn extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          width: 36,
-          height: 36,
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
             color: tokens.glassOverlay,
             borderRadius: BorderRadius.circular(8),
@@ -392,6 +522,64 @@ class _ActionIconBtn extends StatelessWidget {
   }
 }
 
+class _FavoriteButton extends ConsumerWidget {
+  const _FavoriteButton({
+    required this.contentType,
+    required this.contentId,
+    required this.text,
+    required this.tokens,
+  });
+
+  final String contentType;
+  final String contentId;
+  final String text;
+  final CosmicTokens tokens;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final key = (contentType: contentType, contentId: contentId);
+    final favorite = ref.watch(favoriteStatusProvider(key));
+    return _ActionIconBtn(
+      icon: favorite.valueOrNull == true
+          ? PhosphorIcons.heart(PhosphorIconsStyle.fill)
+          : PhosphorIcons.heart(PhosphorIconsStyle.light),
+      tooltip: favorite.valueOrNull == true ? 'Favorilerden çıkar' : 'Favorile',
+      tokens: tokens,
+      onPressed: () async {
+        final wasFavorite = await ref
+            .read(favoritesDaoProvider)
+            .isFavorite(contentType, contentId);
+        await ref
+            .read(favoritesDaoProvider)
+            .toggle(contentType, contentId, text);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              wasFavorite ? 'Favorilerden çıkarıldı' : 'Favorilere eklendi',
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+String _todayContentKey() {
+  final now = DateTime.now();
+  final month = now.month.toString().padLeft(2, '0');
+  final day = now.day.toString().padLeft(2, '0');
+  return '${now.year}-$month-$day';
+}
+
+Future<void> _copyContent(BuildContext context, String text) async {
+  await Clipboard.setData(ClipboardData(text: text));
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Panoya kopyalandı')),
+  );
+}
+
 // ── Saat Anı kartı ────────────────────────────────────────────────────────────
 class _TimeMomentCard extends StatelessWidget {
   const _TimeMomentCard({required this.tokens});
@@ -400,38 +588,54 @@ class _TimeMomentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CosmicCard(
-      child: InkWell(
-        onTap: () => context.push(AppRoutes.timeMoment),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                gradient: tokens.primaryGradient,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.access_time_rounded,
-                  color: Colors.white, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => context.push(AppRoutes.timeMoment),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
                 children: [
-                  Text('Saat Anı', style: AppTextStyles.titleSmall(tokens)),
-                  Text(
-                    '11:11 · 22:22 gibi saatlerde bir an dur',
-                    style: AppTextStyles.caption(tokens).copyWith(
-                      color: tokens.onSurfaceMuted,
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: tokens.heroBg,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(Icons.access_time_rounded,
+                        color: tokens.accentPrimary, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Saat Anı', style: AppTextStyles.titleSmall(tokens)),
+                        Text(
+                          'Çift ve palindrom saatlerde kısa bir durak',
+                          style: AppTextStyles.caption(tokens).copyWith(
+                            color: tokens.onSurfaceMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  Icon(Icons.chevron_right, color: tokens.onSurfaceMuted),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: tokens.onSurfaceMuted),
-          ],
-        ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => context.push('/time-moment/history'),
+              icon: const Icon(Icons.history, size: 18),
+              label: const Text('Kaydettiğim niyetler'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -473,18 +677,19 @@ class _DailyAffirmationCard extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              _ActionIconBtn(
-                icon: PhosphorIcons.heart(PhosphorIconsStyle.light),
-                tooltip: 'Favorile',
+              _FavoriteButton(
+                contentType: 'affirmation',
+                contentId:
+                    contentAsync.valueOrNull?.contentKey ?? _todayContentKey(),
+                text: affirmation,
                 tokens: tokens,
-                onPressed: () {},
               ),
               const SizedBox(width: 8),
               _ActionIconBtn(
                 icon: PhosphorIcons.copy(PhosphorIconsStyle.light),
                 tooltip: 'Kopyala',
                 tokens: tokens,
-                onPressed: () {},
+                onPressed: () => _copyContent(context, affirmation),
               ),
             ],
           ),
@@ -502,18 +707,34 @@ class _QuickActionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = [
-      (PhosphorIcons.target(PhosphorIconsStyle.light), 'Niyet\nOluştur', () {
-        context.go(AppRoutes.journal, extra: {'openIntentionSheet': true});
-      }),
-      (PhosphorIcons.pencilSimple(PhosphorIconsStyle.light), 'Günlük\nYaz', () {
-        context.go(AppRoutes.journal);
-      }),
-      (PhosphorIcons.wind(PhosphorIconsStyle.light), 'Nefes\nMolası', () {
-        context.push(AppRoutes.breath);
-      }),
-      (PhosphorIcons.clock(PhosphorIconsStyle.light), 'Saat\nAnı', () {
-        context.push(AppRoutes.timeMoment);
-      }),
+      (
+        PhosphorIcons.target(PhosphorIconsStyle.light),
+        'Niyet\nOluştur',
+        () {
+          context.go(AppRoutes.journal, extra: {'openIntentionSheet': true});
+        }
+      ),
+      (
+        PhosphorIcons.pencilSimple(PhosphorIconsStyle.light),
+        'Günlük\nYaz',
+        () {
+          context.go(AppRoutes.journal);
+        }
+      ),
+      (
+        PhosphorIcons.wind(PhosphorIconsStyle.light),
+        'Nefes\nMolası',
+        () {
+          context.push(AppRoutes.breath);
+        }
+      ),
+      (
+        PhosphorIcons.clock(PhosphorIconsStyle.light),
+        'Saat\nAnı',
+        () {
+          context.push(AppRoutes.timeMoment);
+        }
+      ),
     ];
 
     return Row(
@@ -588,10 +809,26 @@ class _DiscoverPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      (PhosphorIcons.heartbeat(PhosphorIconsStyle.light), 'Uyumluluk'),
-      (PhosphorIcons.diamond(PhosphorIconsStyle.light), 'Doğal Taşım'),
-      (PhosphorIcons.horse(PhosphorIconsStyle.light), 'Ruh Hayvanım'),
-      (PhosphorIcons.moon(PhosphorIconsStyle.light), 'Ay Takvimi'),
+      (
+        PhosphorIcons.heartbeat(PhosphorIconsStyle.light),
+        'Uyumluluk',
+        AppRoutes.compatibility
+      ),
+      (
+        PhosphorIcons.diamond(PhosphorIconsStyle.light),
+        'Doğal Taşım',
+        AppRoutes.crystal
+      ),
+      (
+        PhosphorIcons.horse(PhosphorIconsStyle.light),
+        'Ruh Hayvanım',
+        AppRoutes.spiritAnimal
+      ),
+      (
+        PhosphorIcons.moon(PhosphorIconsStyle.light),
+        'Ay Takvimi',
+        AppRoutes.moonCalendar
+      ),
     ];
 
     return Column(
@@ -608,6 +845,7 @@ class _DiscoverPreview extends StatelessWidget {
             itemBuilder: (context, i) => _DiscoverCard(
               icon: items[i].$1,
               label: items[i].$2,
+              onTap: () => context.push(items[i].$3),
               tokens: tokens,
             ),
           ),
@@ -621,32 +859,41 @@ class _DiscoverCard extends StatelessWidget {
   const _DiscoverCard({
     required this.icon,
     required this.label,
+    required this.onTap,
     required this.tokens,
   });
   final IconData icon;
   final String label;
+  final VoidCallback onTap;
   final CosmicTokens tokens;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 100,
-      decoration: BoxDecoration(
-        color: tokens.surface,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tokens.glassStroke),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: tokens.accentPrimary, size: 28),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: AppTextStyles.labelSmall(tokens),
-            textAlign: TextAlign.center,
+        child: Container(
+          width: 100,
+          decoration: BoxDecoration(
+            color: tokens.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: tokens.glassStroke),
           ),
-        ],
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: tokens.accentPrimary, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: AppTextStyles.labelSmall(tokens),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -659,11 +906,13 @@ class TodayContent {
     required this.affirmation,
     this.reflectionPrompt,
     required this.source,
+    this.contentKey,
   });
   final String message;
   final String affirmation;
   final String? reflectionPrompt;
   final String source;
+  final String? contentKey;
 }
 
 final todayContentProvider = FutureProvider<TodayContent?>((ref) async {
@@ -675,20 +924,42 @@ final todayContentProvider = FutureProvider<TodayContent?>((ref) async {
       '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
   final contentService = ref.watch(aiContentServiceProvider);
+  final dailyDao = ref.watch(dailyContentDaoProvider);
   try {
+    final saved = await dailyDao.forDate(localDate);
+    if (saved != null) {
+      return TodayContent(
+        message: saved.message,
+        affirmation: saved.affirmation,
+        reflectionPrompt: saved.reflectionPrompt,
+        source: saved.source,
+        contentKey: saved.contentKey,
+      );
+    }
+    final recentKeys = await dailyDao.recentContentKeys(7);
     final result = await contentService.generateDailyMessage(
       sign: profile.zodiacSign,
       tone: profile.tone,
       localDate: localDate,
-      recentContentKeys: [],
+      recentContentKeys: recentKeys,
+      personalSalt: ref.read(userProfileRepositoryProvider).contentSalt,
     );
     if (result is ServiceSuccess<DailyContentResult>) {
       final data = result.data;
+      await dailyDao.upsert(DailyContentTableCompanion.insert(
+        localDate: localDate,
+        message: data.message,
+        affirmation: data.affirmation,
+        reflectionPrompt: Value(data.reflectionPrompt),
+        source: Value(data.source.name),
+        contentKey: Value(data.contentKey),
+      ));
       return TodayContent(
         message: data.message,
         affirmation: data.affirmation,
         reflectionPrompt: data.reflectionPrompt,
         source: data.source.name,
+        contentKey: data.contentKey,
       );
     }
     return null;

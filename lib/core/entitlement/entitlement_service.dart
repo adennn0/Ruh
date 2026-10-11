@@ -39,6 +39,7 @@ enum AppFeature {
   premiumWidgetThemes,
   // Derin mesaj
   deepDailyMessage,
+  personalEnergyFlow,
   // Ay/yükselen
   moonAndRising,
 }
@@ -102,6 +103,7 @@ class EntitlementService extends ChangeNotifier {
     AppFeature.messageCooldown,
     AppFeature.messageRefresh,
     AppFeature.savedPersons,
+    AppFeature.personalEnergyFlow,
   };
 
   static const _freeLimits = {
@@ -111,6 +113,7 @@ class EntitlementService extends ChangeNotifier {
     AppFeature.messageCooldown: AppLimits.freeCooldownSeconds,
     AppFeature.messageRefresh: AppLimits.freeMaxDailyMessageRefresh,
     AppFeature.savedPersons: AppLimits.freeMaxSavedPersons,
+    AppFeature.personalEnergyFlow: AppLimits.freeEnergyFlowPreviewSlots,
   };
 
   static const _premiumLimits = {
@@ -120,6 +123,7 @@ class EntitlementService extends ChangeNotifier {
     AppFeature.messageCooldown: AppLimits.premiumCooldownSeconds,
     AppFeature.messageRefresh: AppLimits.premiumMaxDailyMessageRefresh,
     AppFeature.savedPersons: AppLimits.premiumMaxSavedPersons,
+    AppFeature.personalEnergyFlow: AppLimits.premiumEnergyFlowSlots,
   };
 }
 

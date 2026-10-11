@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
 import '../../widgets/cosmic_widgets.dart';
 import '../../data/repositories/user_profile_repository.dart';
@@ -14,7 +15,8 @@ class CrystalScreen extends ConsumerWidget {
     final tokens = Theme.of(context).extension<CosmicTokens>()!;
     final profile = ref.watch(userProfileProvider);
     final entitlementService = ref.watch(entitlementServiceProvider);
-    final hasPremiumContent = entitlementService.isFeatureAvailable(AppFeature.moonRisingStone);
+    final hasPremiumContent =
+        entitlementService.isFeatureAvailable(AppFeature.moonRisingStone);
 
     if (profile == null) {
       return Scaffold(
@@ -53,12 +55,14 @@ class CrystalScreen extends ConsumerWidget {
                   children: [
                     Text(
                       crystalName,
-                      style: AppTextStyles.h1(tokens).copyWith(color: const Color(0xFFFFFFFF)),
+                      style: AppTextStyles.h1(tokens)
+                          .copyWith(color: const Color(0xFFFFFFFF)),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Asset: gems/${sign.name}.webp',
-                      style: AppTextStyles.labelSmall(tokens).copyWith(color: const Color(0xB3FFFFFF)),
+                      style: AppTextStyles.labelSmall(tokens)
+                          .copyWith(color: const Color(0xB3FFFFFF)),
                     ),
                   ],
                 ),
@@ -81,7 +85,8 @@ class CrystalScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Nasıl Kullanılır?', style: AppTextStyles.titleSmall(tokens)),
+                  Text('Nasıl Kullanılır?',
+                      style: AppTextStyles.titleSmall(tokens)),
                   const SizedBox(height: 8),
                   Text(
                     _getUsageSuggestion(sign),
@@ -101,7 +106,8 @@ class CrystalScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               'Sembolik ve eğlence amaçlıdır. Tıbbi veya tedavi edici bir özelliği yoktur.',
-              style: AppTextStyles.caption(tokens).copyWith(fontStyle: FontStyle.italic),
+              style: AppTextStyles.caption(tokens)
+                  .copyWith(fontStyle: FontStyle.italic),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -115,11 +121,13 @@ class CrystalScreen extends ConsumerWidget {
                       children: [
                         const PremiumBadge(compact: true),
                         const SizedBox(width: 8),
-                        Text('Ay ve Yükselen Taşları', style: AppTextStyles.titleSmall(tokens)),
+                        Text('Ay ve Yükselen Taşları',
+                            style: AppTextStyles.titleSmall(tokens)),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('Premium özellik (Aktif)', style: AppTextStyles.body(tokens)),
+                    Text('Premium özellik (Aktif)',
+                        style: AppTextStyles.body(tokens)),
                   ],
                 ),
               )
@@ -127,7 +135,7 @@ class CrystalScreen extends ConsumerWidget {
               LockedPremiumCard(
                 label: 'Ay ve Yükselen Taşları',
                 sublabel: 'Diğer burçlarının taşlarını keşfet',
-                onPreview: () {},
+                onPreview: () => context.push('/premium'),
               ),
             const SizedBox(height: 48),
           ],

@@ -13,8 +13,15 @@ class DailyContentDao extends DatabaseAccessor<AppDatabase>
       (select(dailyContentTable)..where((t) => t.localDate.equals(localDate)))
           .getSingleOrNull();
 
-  Future<int> upsert(DailyContentTableCompanion companion) =>
-      into(dailyContentTable).insertOnConflictUpdate(companion);
+  Future<int> upsert(DailyContentTableCompanion companion) async {
+    final localDate = companion.localDate.value;
+    return transaction(() async {
+      await (delete(dailyContentTable)
+            ..where((row) => row.localDate.equals(localDate)))
+          .go();
+      return into(dailyContentTable).insert(companion);
+    });
+  }
 
   Future<void> incrementRegenCount(String localDate) async {
     await (update(dailyContentTable)
@@ -22,7 +29,7 @@ class DailyContentDao extends DatabaseAccessor<AppDatabase>
         .write(
       DailyContentTableCompanion(
         regenCount: Value(
-          (await forDate(localDate))?.regenCount ?? 0 + 1,
+          ((await forDate(localDate))?.regenCount ?? 0) + 1,
         ),
       ),
     );

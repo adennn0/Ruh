@@ -21,6 +21,9 @@ part 'app_database.g.dart';
     IntentionTable,
     JournalEntryTable,
     TimeMomentTable,
+    DailyEnergyEntryTable,
+    BondProfileTable,
+    BondMomentTable,
     FavoriteTable,
     SavedPersonTable,
     ReminderSettingTable,
@@ -47,7 +50,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -57,6 +60,15 @@ class AppDatabase extends _$AppDatabase {
           await into(appSettingsTable).insert(
             const AppSettingsTableCompanion(),
           );
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(dailyEnergyEntryTable);
+          }
+          if (from < 3) {
+            await m.createTable(bondProfileTable);
+            await m.createTable(bondMomentTable);
+          }
         },
       );
 }
@@ -93,6 +105,20 @@ final dailyContentDaoProvider = Provider<DailyContentDao>((ref) {
 
 final favoritesDaoProvider = Provider<FavoritesDao>((ref) {
   return ref.watch(appDatabaseProvider).favoritesDao;
+});
+
+final favoritesProvider = StreamProvider<List<FavoriteTableData>>((ref) {
+  return ref.watch(favoritesDaoProvider).watchAll();
+});
+
+final favoriteStatusProvider =
+    Provider.family<AsyncValue<bool>, ({String contentType, String contentId})>(
+        (ref, key) {
+  return ref.watch(favoritesProvider).whenData((favorites) => favorites.any(
+        (item) =>
+            item.contentType == key.contentType &&
+            item.contentId == key.contentId,
+      ));
 });
 
 final savedPersonDaoProvider = Provider<SavedPersonDao>((ref) {

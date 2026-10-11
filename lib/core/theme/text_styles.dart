@@ -8,8 +8,10 @@ import 'cosmic_tokens.dart';
 class AppTextStyles {
   AppTextStyles._();
 
-  static const _serifFamily = 'Fraunces';
   static const _sansFamily = 'Manrope';
+  // One sans family throughout the interface keeps headings and controls calm
+  // and platform-like; reserve hierarchy for size and weight, not ornament.
+  static const _serifFamily = _sansFamily;
 
   // ─── TextTheme ────────────────────────────────────────────────────────────
   static TextTheme textTheme(CosmicTokens tokens) {
@@ -160,6 +162,5 @@ class AppTextStyles {
         color: tokens.onBackground,
         height: 1.25,
         letterSpacing: -0.3,
-        fontStyle: FontStyle.italic,
       );
 }

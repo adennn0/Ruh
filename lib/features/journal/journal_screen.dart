@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../data/db/app_database.dart';
 import '../../core/theme/theme.dart';
 import '../../data/repositories/journal_repository.dart';
 import '../../data/repositories/intention_repository.dart';
+import '../../domain/services/notification_scheduler.dart';
 import '../../domain/models/enums.dart';
 import '../../widgets/cosmic_widgets.dart';
 
 class JournalScreen extends ConsumerStatefulWidget {
-  const JournalScreen({super.key});
+  const JournalScreen({super.key, this.initialTab = 0, this.focusIntentionId});
+
+  final int initialTab;
+  final int? focusIntentionId;
 
   @override
   ConsumerState<JournalScreen> createState() => _JournalScreenState();
@@ -22,7 +27,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, _tabs.length - 1),
+    );
   }
 
   @override
@@ -52,11 +61,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          _TodayTab(),
-          _IntentionsTab(),
-          _JournalEntriesTab(),
-          _FavoritesTab(),
+        children: [
+          const _TodayTab(),
+          _IntentionsTab(focusIntentionId: widget.focusIntentionId),
+          const _JournalEntriesTab(),
+          const _FavoritesTab(),
         ],
       ),
     );
@@ -142,8 +151,19 @@ class _TodayTab extends ConsumerWidget {
   String _todayStr() {
     final now = DateTime.now();
     const months = [
-      '', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      '',
+      'Ocak',
+      'Şubat',
+      'Mart',
+      'Nisan',
+      'Mayıs',
+      'Haziran',
+      'Temmuz',
+      'Ağustos',
+      'Eylül',
+      'Ekim',
+      'Kasım',
+      'Aralık'
     ];
     return '${now.day} ${months[now.month]} ${now.year}';
   }
@@ -195,7 +215,8 @@ class _QuickWriteBtn extends StatelessWidget {
 
 // ── Niyetler sekmesi ──────────────────────────────────────────────────────────
 class _IntentionsTab extends ConsumerWidget {
-  const _IntentionsTab();
+  const _IntentionsTab({this.focusIntentionId});
+  final int? focusIntentionId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -233,8 +254,11 @@ class _IntentionsTab extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
                 itemCount: intentions.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, i) =>
-                    _IntentionCard(intention: intentions[i], tokens: tokens),
+                itemBuilder: (context, i) => _IntentionCard(
+                  intention: intentions[i],
+                  tokens: tokens,
+                  highlighted: intentions[i].id == focusIntentionId,
+                ),
               ),
       ),
     );
@@ -283,29 +307,89 @@ class _JournalEntriesTab extends ConsumerWidget {
 }
 
 // ── Favoriler sekmesi ─────────────────────────────────────────────────────────
-class _FavoritesTab extends StatelessWidget {
+class _FavoritesTab extends ConsumerWidget {
   const _FavoritesTab();
 
   @override
-  Widget build(BuildContext context) {
-    return const EmptyStateWidget(
-      title: 'Henüz favori yok.',
-      subtitle: 'Mesajları ve olumlamaları kalp ile favorilerine ekleyebilirsin.',
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = Theme.of(context).extension<CosmicTokens>()!;
+    final favorites = ref.watch(favoritesProvider);
+    return favorites.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const EmptyStateWidget(
+        title: 'Favoriler yüklenemedi.',
+        subtitle: 'Biraz sonra yeniden deneyebilirsin.',
+      ),
+      data: (items) => items.isEmpty
+          ? const EmptyStateWidget(
+              title: 'Henüz favori yok.',
+              subtitle:
+                  'Mesajları ve olumlamaları kalp ile favorilerine ekleyebilirsin.',
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return CosmicCard(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.contentType == 'affirmation'
+                                  ? 'Günlük olumlama'
+                                  : 'Sana özel mesaj',
+                              style: AppTextStyles.caption(tokens)
+                                  .copyWith(color: tokens.accentPrimary),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                                item.cachedText ??
+                                    'Bu kayıt için metin saklanmamış.',
+                                style: AppTextStyles.body(tokens)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Favorilerden çıkar',
+                        onPressed: () => ref.read(favoritesDaoProvider).toggle(
+                              item.contentType,
+                              item.contentId,
+                              item.cachedText,
+                            ),
+                        icon: Icon(PhosphorIcons.heart(PhosphorIconsStyle.fill),
+                            color: tokens.accentSecondary),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 }
 
 // ── Niyet kartı ───────────────────────────────────────────────────────────────
 class _IntentionCard extends ConsumerWidget {
-  const _IntentionCard({required this.intention, required this.tokens});
+  const _IntentionCard(
+      {required this.intention,
+      required this.tokens,
+      this.highlighted = false});
   final IntentionModel intention;
   final CosmicTokens tokens;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.watch(intentionRepositoryProvider);
 
     return CosmicCard(
+      borderColor: highlighted ? tokens.accentPrimary : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -333,17 +417,21 @@ class _IntentionCard extends ConsumerWidget {
                   switch (value) {
                     case 'complete':
                       await repo.complete(intention.id);
+                      await rebuildNotificationWindow(ref);
                     case 'archive':
                       await repo.archive(intention.id);
+                      await rebuildNotificationWindow(ref);
                     case 'delete':
-                      if (context.mounted) await _confirmDelete(context, repo);
+                      if (context.mounted) {
+                        await _confirmDelete(context, repo, ref);
+                      }
                   }
                 },
                 itemBuilder: (_) => [
                   PopupMenuItem(
                     value: 'complete',
-                    child: Text('Tamamlandı',
-                        style: AppTextStyles.body(tokens)),
+                    child:
+                        Text('Tamamlandı', style: AppTextStyles.body(tokens)),
                   ),
                   PopupMenuItem(
                     value: 'archive',
@@ -397,7 +485,10 @@ class _IntentionCard extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(
-      BuildContext context, IntentionRepository repo) async {
+    BuildContext context,
+    IntentionRepository repo,
+    WidgetRef ref,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -413,7 +504,10 @@ class _IntentionCard extends ConsumerWidget {
         ],
       ),
     );
-    if (confirm == true) await repo.delete(intention.id);
+    if (confirm == true) {
+      await repo.delete(intention.id);
+      await rebuildNotificationWindow(ref);
+    }
   }
 }
 
@@ -541,8 +635,8 @@ class _WriteSheetState extends ConsumerState<_WriteSheet> {
               TextField(
                 controller: _titleCtrl,
                 style: TextStyle(color: tokens.onSurface),
-                decoration: const InputDecoration(
-                    hintText: 'Başlık (isteğe bağlı)'),
+                decoration:
+                    const InputDecoration(hintText: 'Başlık (isteğe bağlı)'),
               ),
               const SizedBox(height: 12),
             ],
@@ -584,8 +678,7 @@ class _WriteSheetState extends ConsumerState<_WriteSheet> {
     final repo = ref.read(journalRepositoryProvider);
     await repo.save(
       type: widget.type,
-      title:
-          _titleCtrl.text.trim().isEmpty ? null : _titleCtrl.text.trim(),
+      title: _titleCtrl.text.trim().isEmpty ? null : _titleCtrl.text.trim(),
       body: _bodyCtrl.text.trim(),
     );
     if (mounted) Navigator.pop(context);
@@ -649,8 +742,7 @@ class _IntentionSheetState extends ConsumerState<_IntentionSheet> {
               TextField(
                 controller: _titleCtrl,
                 style: TextStyle(color: tokens.onSurface),
-                decoration:
-                    const InputDecoration(hintText: 'Niyetin nedir?'),
+                decoration: const InputDecoration(hintText: 'Niyetin nedir?'),
               ),
               const SizedBox(height: 12),
               Text('Kategori', style: AppTextStyles.caption(tokens)),
@@ -663,18 +755,13 @@ class _IntentionSheetState extends ConsumerState<_IntentionSheet> {
                     label: Text(cat.displayName),
                     selected: sel,
                     onSelected: (_) => setState(() => _category = cat),
-                    selectedColor:
-                        tokens.accentPrimary.withValues(alpha: 0.2),
+                    selectedColor: tokens.accentPrimary.withValues(alpha: 0.2),
                     labelStyle: AppTextStyles.labelSmall(tokens).copyWith(
-                      color: sel
-                          ? tokens.accentPrimary
-                          : tokens.onSurfaceMuted,
+                      color: sel ? tokens.accentPrimary : tokens.onSurfaceMuted,
                     ),
                     backgroundColor: tokens.surface,
                     side: BorderSide(
-                      color: sel
-                          ? tokens.accentPrimary
-                          : tokens.glassStroke,
+                      color: sel ? tokens.accentPrimary : tokens.glassStroke,
                     ),
                   );
                 }).toList(),
@@ -684,8 +771,8 @@ class _IntentionSheetState extends ConsumerState<_IntentionSheet> {
                 controller: _descCtrl,
                 style: TextStyle(color: tokens.onSurface),
                 maxLines: 3,
-                decoration: const InputDecoration(
-                    hintText: 'Açıklama (isteğe bağlı)'),
+                decoration:
+                    const InputDecoration(hintText: 'Açıklama (isteğe bağlı)'),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -736,14 +823,14 @@ class _IntentionSheetState extends ConsumerState<_IntentionSheet> {
     final repo = ref.read(intentionRepositoryProvider);
     final result = await repo.add(
       title: title,
-      description:
-          _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+      description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
       category: _category,
-      actionStep:
-          _stepCtrl.text.trim().isEmpty ? null : _stepCtrl.text.trim(),
+      actionStep: _stepCtrl.text.trim().isEmpty ? null : _stepCtrl.text.trim(),
     );
     if (!mounted) return;
     if (result.success) {
+      await rebuildNotificationWindow(ref);
+      if (!mounted) return;
       Navigator.pop(context);
     } else {
       setState(() {

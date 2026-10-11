@@ -15,6 +15,7 @@ abstract class AIContentService {
     required String localDate, // "YYYY-MM-DD"
     required List<String>
         recentContentKeys, // son N günde gösterilenlerin key'i
+    String personalSalt = '',
   });
 
   /// Tek olumlama üret

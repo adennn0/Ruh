@@ -82,6 +82,47 @@ class TimeMomentTable extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// User-entered daily wellbeing notes. Values are self-reports, never inferred.
+class DailyEnergyEntryTable extends Table {
+  @override
+  String get tableName => 'daily_energy_entries';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get localDate => text()(); // YYYY-MM-DD
+  IntColumn get energy => integer()(); // 1–5, selected by the user
+  TextColumn get mood => text()();
+  IntColumn get focus => integer()(); // 1–5, selected by the user
+  TextColumn get financialAwareness => text().nullable()();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+class BondProfileTable extends Table {
+  @override
+  String get tableName => 'bond_profiles';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text().withLength(max: 60)();
+  TextColumn get relationCategory => text()();
+  TextColumn get intention => text().nullable()();
+  TextColumn get privateNote => text().nullable()();
+  DateTimeColumn get birthDate => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+class BondMomentTable extends Table {
+  @override
+  String get tableName => 'bond_moments';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get bondId => integer()
+      .references(BondProfileTable, #id, onDelete: KeyAction.cascade)();
+  TextColumn get title => text().withLength(max: 100)();
+  TextColumn get note => text().nullable()();
+  TextColumn get occurredOn => text()(); // YYYY-MM-DD
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 class FavoriteTable extends Table {
   @override
   String get tableName => 'favorites';

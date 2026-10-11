@@ -3,46 +3,48 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/theme.dart';
 import '../../data/db/app_database.dart';
 import '../../data/repositories/streak_repository.dart';
 import '../../domain/models/enums.dart';
+import '../../domain/time_moment/special_times.dart';
 import '../../widgets/cosmic_widgets.dart';
 
 class TimeMomentScreen extends ConsumerStatefulWidget {
-  const TimeMomentScreen({super.key});
+  const TimeMomentScreen({super.key, this.initialDate, this.initialTime});
+
+  final String? initialDate;
+  final String? initialTime;
 
   @override
   ConsumerState<TimeMomentScreen> createState() => _TimeMomentScreenState();
 }
 
-class _TimeMomentScreenState extends ConsumerState<TimeMomentScreen>
-    with SingleTickerProviderStateMixin {
-  late String _currentTime;
+class _TimeMomentScreenState extends ConsumerState<TimeMomentScreen> {
+  String _currentTime = '';
   Timer? _timer;
   final TextEditingController _intentionController = TextEditingController();
-
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
     _updateTime();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
+    if (widget.initialTime == null ||
+        !SpecialTimes.isSpecial(widget.initialTime!)) {
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
+    }
   }
 
   void _updateTime() {
+    if (widget.initialTime != null &&
+        SpecialTimes.isSpecial(widget.initialTime!)) {
+      if (_currentTime != widget.initialTime) {
+        setState(() => _currentTime = widget.initialTime!);
+      }
+      return;
+    }
     final now = DateTime.now();
     final newTime =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -57,24 +59,16 @@ class _TimeMomentScreenState extends ConsumerState<TimeMomentScreen>
   void dispose() {
     _timer?.cancel();
     _intentionController.dispose();
-    _pulseController.dispose();
     super.dispose();
   }
 
-  bool _isMirrorTime(String time) {
-    const mirrors = {
-      '00:00', '01:01', '02:02', '03:03', '04:04', '05:05', '06:06', '07:07',
-      '08:08', '09:09', '10:10', '11:01', '11:11', '12:12', '13:13', '14:14',
-      '15:15', '16:16', '17:17', '18:18', '19:19', '20:20', '21:21', '22:22', '23:23'
-    };
-    return mirrors.contains(time);
-  }
+  bool _isMirrorTime(String time) => SpecialTimes.isSpecial(time);
 
   Future<void> _saveMoment() async {
     final text = _intentionController.text.trim();
     final db = ref.read(appDatabaseProvider);
     final now = DateTime.now();
-    final dateStr =
+    final dateStr = widget.initialDate ??
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
     await db.into(db.timeMomentTable).insert(
@@ -92,8 +86,7 @@ class _TimeMomentScreenState extends ConsumerState<TimeMomentScreen>
     }
 
     if (mounted) {
-      showCosmicSnackbar(context, 'Saat anı kaydedildi.', isError: false);
-      Navigator.of(context).pop();
+      context.push('/time-moment/history');
     }
   }
 
@@ -101,53 +94,47 @@ class _TimeMomentScreenState extends ConsumerState<TimeMomentScreen>
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<CosmicTokens>()!;
     final isMirror = _isMirrorTime(_currentTime);
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
 
     return Scaffold(
       backgroundColor: tokens.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: tokens.background,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.close, color: tokens.onBackground),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Saat Anı geçmişi',
+            onPressed: () => context.push('/time-moment/history'),
+            icon: Icon(Icons.history, color: tokens.onBackground),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              AnimatedBuilder(
-                animation: _pulseAnimation,
-                builder: (context, child) {
-                  final scale = reduceMotion ? 1.0 : _pulseAnimation.value;
-                  return Transform.scale(
-                    scale: scale,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 48, vertical: 24),
-                      decoration: BoxDecoration(
-                        color: tokens.surface,
-                        borderRadius: BorderRadius.circular(32),
-                        border: isMirror
-                            ? Border.all(color: tokens.premiumBadge, width: 2)
-                            : Border.all(color: tokens.glassStroke),
-                        boxShadow: isMirror
-                            ? tokens.primaryGlow(
-                                radius: 24, opacity: 0.5)
-                            : null,
-                      ),
-                      child: Text(
-                        _currentTime,
-                        style: AppTextStyles.heroTitle(tokens),
-                      ),
-                    ),
-                  );
-                },
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 36, vertical: 20),
+                decoration: BoxDecoration(
+                  color: tokens.surface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: isMirror ? tokens.accentPrimary : tokens.glassStroke,
+                    width: isMirror ? 1.5 : 1,
+                  ),
+                ),
+                child: Text(
+                  _currentTime,
+                  style: AppTextStyles.heroTitle(tokens),
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               if (isMirror)
                 Text(
                   'Özel bir saat yakaladın!',
@@ -155,7 +142,7 @@ class _TimeMomentScreenState extends ConsumerState<TimeMomentScreen>
                     color: tokens.premiumBadge,
                   ),
                 ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 28),
               Text(
                 'Bu ana ne niyetin?',
                 style: AppTextStyles.h2(tokens),
@@ -187,7 +174,7 @@ class _TimeMomentScreenState extends ConsumerState<TimeMomentScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               CosmicPrimaryButton(
                 label: 'Kayıt Et',
                 onPressed: _saveMoment,

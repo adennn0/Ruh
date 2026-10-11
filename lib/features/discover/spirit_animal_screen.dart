@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
 import '../../widgets/cosmic_widgets.dart';
 import '../../data/repositories/user_profile_repository.dart';
@@ -14,7 +15,8 @@ class SpiritAnimalScreen extends ConsumerWidget {
     final tokens = Theme.of(context).extension<CosmicTokens>()!;
     final profile = ref.watch(userProfileProvider);
     final entitlementService = ref.watch(entitlementServiceProvider);
-    final hasPremiumContent = entitlementService.isFeatureAvailable(AppFeature.deepAnimalReading);
+    final hasPremiumContent =
+        entitlementService.isFeatureAvailable(AppFeature.deepAnimalReading);
     final astrologyEngine = ref.watch(astrologyEngineProvider);
 
     if (profile == null) {
@@ -53,7 +55,8 @@ class SpiritAnimalScreen extends ConsumerWidget {
                 ),
                 child: Text(
                   'Doğum saati bilinmediği için ana ruh hayvanı formu (Gün) gösterilmektedir.',
-                  style: AppTextStyles.caption(tokens).copyWith(color: tokens.onSurfaceSubtle),
+                  style: AppTextStyles.caption(tokens)
+                      .copyWith(color: tokens.onSurfaceSubtle),
                 ),
               ),
             // Image area placeholder
@@ -69,12 +72,14 @@ class SpiritAnimalScreen extends ConsumerWidget {
                   children: [
                     Text(
                       animalName,
-                      style: AppTextStyles.h1(tokens).copyWith(color: const Color(0xFFFFFFFF)),
+                      style: AppTextStyles.h1(tokens)
+                          .copyWith(color: const Color(0xFFFFFFFF)),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Asset: animals/${sign.name}_${period.name}.webp',
-                      style: AppTextStyles.labelSmall(tokens).copyWith(color: const Color(0xB3FFFFFF)),
+                      style: AppTextStyles.labelSmall(tokens)
+                          .copyWith(color: const Color(0xB3FFFFFF)),
                     ),
                   ],
                 ),
@@ -97,11 +102,13 @@ class SpiritAnimalScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Bugünün Hayvan Mesajı', style: AppTextStyles.titleSmall(tokens)),
+                  Text('Bugünün Hayvan Mesajı',
+                      style: AppTextStyles.titleSmall(tokens)),
                   const SizedBox(height: 8),
                   Text(
                     _getDailyMessage(sign),
-                    style: AppTextStyles.body(tokens).copyWith(fontStyle: FontStyle.italic),
+                    style: AppTextStyles.body(tokens)
+                        .copyWith(fontStyle: FontStyle.italic),
                   ),
                 ],
               ),
@@ -131,11 +138,13 @@ class SpiritAnimalScreen extends ConsumerWidget {
                       children: [
                         const PremiumBadge(compact: true),
                         const SizedBox(width: 8),
-                        Text('Derin Okuma ve Ritüel', style: AppTextStyles.titleSmall(tokens)),
+                        Text('Derin Okuma ve Ritüel',
+                            style: AppTextStyles.titleSmall(tokens)),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('Premium özellik (Aktif)', style: AppTextStyles.body(tokens)),
+                    Text('Premium özellik (Aktif)',
+                        style: AppTextStyles.body(tokens)),
                   ],
                 ),
               )
@@ -143,7 +152,7 @@ class SpiritAnimalScreen extends ConsumerWidget {
               LockedPremiumCard(
                 label: 'Derin Okuma ve Ritüel Önerileri',
                 sublabel: 'Ruh hayvanınla derin bir bağ kur',
-                onPreview: () {},
+                onPreview: () => context.push('/premium'),
               ),
             const SizedBox(height: 48),
           ],
@@ -153,26 +162,41 @@ class SpiritAnimalScreen extends ConsumerWidget {
   }
 
   String _getAnimalDescription(ZodiacSign sign, SpiritAnimalTimePeriod period) {
-    final baseTrait = switch(sign) {
-      ZodiacSign.aries => 'Şahin, keskin görüşün ve hedefe kilitlenmenin sembolüdür.',
-      ZodiacSign.taurus => 'Ayı, güçlü köklerin ve sarsılmaz dayanıklılığın temsilcisidir.',
-      ZodiacSign.gemini => 'Kelebek, değişimin ve zihinsel çevikliğin zarif dansıdır.',
-      ZodiacSign.cancer => 'Kaplumbağa, korunmanın ve bilgece yavaşlamanın sembolüdür.',
+    final baseTrait = switch (sign) {
+      ZodiacSign.aries =>
+        'Şahin, keskin görüşün ve hedefe kilitlenmenin sembolüdür.',
+      ZodiacSign.taurus =>
+        'Ayı, güçlü köklerin ve sarsılmaz dayanıklılığın temsilcisidir.',
+      ZodiacSign.gemini =>
+        'Kelebek, değişimin ve zihinsel çevikliğin zarif dansıdır.',
+      ZodiacSign.cancer =>
+        'Kaplumbağa, korunmanın ve bilgece yavaşlamanın sembolüdür.',
       ZodiacSign.leo => 'Aslan, cesaretin ve liderliğin parlayan ruhudur.',
-      ZodiacSign.virgo => 'Baykuş, derin bilgeliğin ve detayları görme yeteneğinin ustasıdır.',
-      ZodiacSign.libra => 'Kuğu, içsel zarafetin ve uyumlu bağların temsilcisidir.',
-      ZodiacSign.scorpio => 'Yılan, kabuk değiştirmenin ve derin dönüşümün sembolüdür.',
-      ZodiacSign.sagittarius => 'At, özgürlüğün ve yeni ufuklara koşmanın ruhudur.',
-      ZodiacSign.capricorn => 'Dağ Keçisi, zirveye ulaşma azminin ve dengenin sembolüdür.',
-      ZodiacSign.aquarius => 'Kuzgun, vizyoner bakış açısının ve zekanın temsilcisidir.',
-      ZodiacSign.pisces => 'Yunus, empatinin ve duygu denizlerinde neşeyle yüzmenin sembolüdür.',
+      ZodiacSign.virgo =>
+        'Baykuş, derin bilgeliğin ve detayları görme yeteneğinin ustasıdır.',
+      ZodiacSign.libra =>
+        'Kuğu, içsel zarafetin ve uyumlu bağların temsilcisidir.',
+      ZodiacSign.scorpio =>
+        'Yılan, kabuk değiştirmenin ve derin dönüşümün sembolüdür.',
+      ZodiacSign.sagittarius =>
+        'At, özgürlüğün ve yeni ufuklara koşmanın ruhudur.',
+      ZodiacSign.capricorn =>
+        'Dağ Keçisi, zirveye ulaşma azminin ve dengenin sembolüdür.',
+      ZodiacSign.aquarius =>
+        'Kuzgun, vizyoner bakış açısının ve zekanın temsilcisidir.',
+      ZodiacSign.pisces =>
+        'Yunus, empatinin ve duygu denizlerinde neşeyle yüzmenin sembolüdür.',
     };
 
-    final periodTrait = switch(period) {
-      SpiritAnimalTimePeriod.dawn => 'Şafak vakti doğan bu ruh, sana her gün yeni bir başlangıç yapma hevesi ve taze bir umut enerjisi verir.',
-      SpiritAnimalTimePeriod.day => 'Gün ışığında parlayan bu ruh, yeteneklerini dışa vurma ve cesurca harekete geçme gücünü taşır.',
-      SpiritAnimalTimePeriod.evening => 'Akşamın kızıllığında beliren bu ruh, günün deneyimlerini bilgeliğe dönüştürme ve dengede kalma yeteneği sunar.',
-      SpiritAnimalTimePeriod.night => 'Gece karanlığında süzülen bu ruh, sezgilerinin derinliklerine inme ve rüyalarının rehberliğini anlama yetisi katar.',
+    final periodTrait = switch (period) {
+      SpiritAnimalTimePeriod.dawn =>
+        'Şafak vakti doğan bu ruh, sana her gün yeni bir başlangıç yapma hevesi ve taze bir umut enerjisi verir.',
+      SpiritAnimalTimePeriod.day =>
+        'Gün ışığında parlayan bu ruh, yeteneklerini dışa vurma ve cesurca harekete geçme gücünü taşır.',
+      SpiritAnimalTimePeriod.evening =>
+        'Akşamın kızıllığında beliren bu ruh, günün deneyimlerini bilgeliğe dönüştürme ve dengede kalma yeteneği sunar.',
+      SpiritAnimalTimePeriod.night =>
+        'Gece karanlığında süzülen bu ruh, sezgilerinin derinliklerine inme ve rüyalarının rehberliğini anlama yetisi katar.',
     };
 
     return '$baseTrait $periodTrait';
@@ -180,18 +204,30 @@ class SpiritAnimalScreen extends ConsumerWidget {
 
   String _getDailyMessage(ZodiacSign sign) {
     switch (sign) {
-      case ZodiacSign.aries: return 'İçindeki ateşi yak; bugün bir adım at.';
-      case ZodiacSign.taurus: return 'Köklerine güven; sabrın seni hedefe taşıyacak.';
-      case ZodiacSign.gemini: return 'Merakını serbest bırak; bugün yeni bir şey öğren.';
-      case ZodiacSign.cancer: return 'Sezgilerin doğru söylüyor; kalbini dinle.';
-      case ZodiacSign.leo: return 'Işığını saklama; bugün sahnede olma sırası sende.';
-      case ZodiacSign.virgo: return 'Detaylardaki güzelliği fark et; her şey yerli yerinde.';
-      case ZodiacSign.libra: return 'Dengeyi bul; içsel uyumun dışına yansıyacak.';
-      case ZodiacSign.scorpio: return 'Eskiyi bırak; yeninin doğmasına izin ver.';
-      case ZodiacSign.sagittarius: return 'Ufkunu genişlet; sınırlarını aşmanın tam zamanı.';
-      case ZodiacSign.capricorn: return 'Zirve yolculuğun devam ediyor; kararlılığını koru.';
-      case ZodiacSign.aquarius: return 'Farklı düşün; senin vizyonuna ihtiyaç var.';
-      case ZodiacSign.pisces: return 'Akışa teslim ol; evren seni doğru yere götürüyor.';
+      case ZodiacSign.aries:
+        return 'İçindeki ateşi yak; bugün bir adım at.';
+      case ZodiacSign.taurus:
+        return 'Köklerine güven; sabrın seni hedefe taşıyacak.';
+      case ZodiacSign.gemini:
+        return 'Merakını serbest bırak; bugün yeni bir şey öğren.';
+      case ZodiacSign.cancer:
+        return 'Sezgilerin doğru söylüyor; kalbini dinle.';
+      case ZodiacSign.leo:
+        return 'Işığını saklama; bugün sahnede olma sırası sende.';
+      case ZodiacSign.virgo:
+        return 'Detaylardaki güzelliği fark et; her şey yerli yerinde.';
+      case ZodiacSign.libra:
+        return 'Dengeyi bul; içsel uyumun dışına yansıyacak.';
+      case ZodiacSign.scorpio:
+        return 'Eskiyi bırak; yeninin doğmasına izin ver.';
+      case ZodiacSign.sagittarius:
+        return 'Ufkunu genişlet; sınırlarını aşmanın tam zamanı.';
+      case ZodiacSign.capricorn:
+        return 'Zirve yolculuğun devam ediyor; kararlılığını koru.';
+      case ZodiacSign.aquarius:
+        return 'Farklı düşün; senin vizyonuna ihtiyaç var.';
+      case ZodiacSign.pisces:
+        return 'Akışa teslim ol; evren seni doğru yere götürüyor.';
     }
   }
 }

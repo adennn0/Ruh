@@ -123,11 +123,11 @@ Detay: [`lib/data/db/tables.dart`](lib/data/db/tables.dart)
 
 | Aşama | Kapsam | Durum |
 |-------|--------|-------|
-| **1** | İskelet, tema, DB şeması, router, bileşenler | 🔄 Bu aşama |
-| **2** | Onboarding, rıza, burç hesabı | ⏳ Bekliyor |
-| **3** | Ana Sayfa, Günlük, Rehber (mock), Profil | ⏳ Bekliyor |
-| **4** | Keşfet — Uyumluluk, Taş, Hayvan, Ay | ⏳ Bekliyor |
-| **5** | Ruh Kedisi | ⏳ Bekliyor |
+| **1** | İskelet, tema, DB şeması, router, bileşenler | ✅ |
+| **2** | Onboarding, rıza, burç hesabı | ✅ |
+| **3** | Ana Sayfa, Günlük, Rehber (mock), Profil, **Saat Anı bildirimleri** | ✅ davranış (cihaz doğrulaması Aşama 9) |
+| **4** | Keşfet — Uyumluluk, Taş, Hayvan, Ay | ✅ ekranlar (test boşlukları kapatılacak) |
+| **5** | Ruh Kedisi | ⏳ Sırada — `docs/CLAUDE_HANDOFF.md` |
 | **5B** | Android Ana Ekran Widget'ı | ⏳ Bekliyor |
 | **6** | Gerçek AI entegrasyonu (backend proxy) | ⏳ Bekliyor |
 | **7** | Premium abonelik | ⏳ Bekliyor |

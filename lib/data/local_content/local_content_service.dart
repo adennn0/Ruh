@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/stable_hash.dart';
 import '../../domain/astrology/astrology_engine.dart';
 import '../../domain/models/content_models.dart';
 import '../../domain/models/enums.dart';
@@ -55,6 +56,7 @@ class LocalContentService implements AIContentService {
     required MessageTone tone,
     required String localDate,
     required List<String> recentContentKeys,
+    String personalSalt = '',
   }) async {
     await _ensureLoaded();
 
@@ -64,8 +66,10 @@ class LocalContentService implements AIContentService {
       return ServiceSuccess(_fallbackDailyContent(sign, tone));
     }
 
-    // Deterministik tohumlama
-    final seed = localDate.hashCode ^ sign.index ^ tone.index;
+    // Deterministik tohumlama: tarih + burç + ton + kişi tuzu
+    // (aynı burçtaki herkese aynı metin gitmesin)
+    final seed =
+        stableHashParts([localDate, sign.index, tone.index, personalSalt]);
     final rng = Random(seed);
 
     // Son N günde gösterilenleri filtrele
@@ -99,7 +103,11 @@ class LocalContentService implements AIContentService {
     final pool = _filter(_affirmationsCache!, sign.name, tone.name);
     if (pool.isEmpty) return ServiceSuccess(_fallbackAffirmation(sign, tone));
 
-    final rng = Random(DateTime.now().day + sign.index);
+    final rng = Random(stableHashParts([
+      DateTime.now().toIso8601String().substring(0, 10),
+      sign.index,
+      tone.index,
+    ]));
     return ServiceSuccess(
         pool[rng.nextInt(pool.length)]['text'] as String? ?? '');
   }
@@ -175,6 +183,7 @@ class MockAIService implements AIContentService {
     required MessageTone tone,
     required String localDate,
     required List<String> recentContentKeys,
+    String personalSalt = '',
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 800));
     return ServiceSuccess(DailyContentResult(

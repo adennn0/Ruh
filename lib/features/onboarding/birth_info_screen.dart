@@ -4,6 +4,7 @@ import '../../core/theme/theme.dart';
 import '../../widgets/cosmic_widgets.dart';
 import 'onboarding_controller.dart';
 import 'onboarding_progress.dart';
+import 'birth_date_input_formatter.dart';
 
 /// Onboarding Ekran 1 — Doğum bilgisi (Spec Bölüm 7)
 class BirthInfoScreen extends ConsumerStatefulWidget {
@@ -15,10 +16,12 @@ class BirthInfoScreen extends ConsumerStatefulWidget {
 
 class _BirthInfoScreenState extends ConsumerState<BirthInfoScreen> {
   final _nameController = TextEditingController();
+  final _birthDateController = TextEditingController();
 
   @override
   void dispose() {
     _nameController.dispose();
+    _birthDateController.dispose();
     super.dispose();
   }
 
@@ -55,6 +58,7 @@ class _BirthInfoScreenState extends ConsumerState<BirthInfoScreen> {
 
     if (picked != null) {
       ref.read(onboardingControllerProvider.notifier).setBirthDate(picked);
+      _birthDateController.text = _formatDate(picked);
     }
   }
 
@@ -155,38 +159,34 @@ class _BirthInfoScreenState extends ConsumerState<BirthInfoScreen> {
                     style: AppTextStyles.label(tokens),
                   ),
                   const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => _pickDate(context, tokens),
-                    child: CosmicCard(
-                      borderColor: state.birthDate != null
-                          ? tokens.accentPrimary
-                          : tokens.glassStroke,
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today_outlined,
-                            color: tokens.accentPrimary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            state.birthDate != null
-                                ? _formatDate(state.birthDate!)
-                                : 'Tarih seç',
-                            style: AppTextStyles.body(tokens).copyWith(
-                              color: state.birthDate != null
-                                  ? tokens.onSurface
-                                  : tokens.onSurfaceMuted,
+                  CosmicCard(
+                    borderColor: state.birthDate != null
+                        ? tokens.accentPrimary
+                        : tokens.glassStroke,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _birthDateController,
+                            keyboardType: TextInputType.datetime,
+                            maxLength: 10,
+                            inputFormatters: const [BirthDateInputFormatter()],
+                            onChanged: ctrl.setBirthDateInput,
+                            decoration: const InputDecoration(
+                              counterText: '',
+                              labelText: 'Doğum tarihi',
+                              hintText: 'gg.aa.yyyy',
+                              border: InputBorder.none,
                             ),
                           ),
-                          const Spacer(),
-                          Icon(
-                            Icons.chevron_right,
-                            color: tokens.onSurfaceMuted,
-                            size: 20,
-                          ),
-                        ],
-                      ),
+                        ),
+                        IconButton(
+                          tooltip: 'Takvimden tarih seç',
+                          onPressed: () => _pickDate(context, tokens),
+                          icon: Icon(Icons.calendar_today_outlined,
+                              color: tokens.accentPrimary),
+                        ),
+                      ],
                     ),
                   ),
 

@@ -6,9 +6,10 @@ library limits;
 class AppLimits {
   AppLimits._();
 
-  // Bildirimler
-  static const int freeMaxDailyNotifications = 2;
-  static const int premiumMaxDailyNotifications = 8;
+  // Bildirimler — çekirdek ürün: kişiselleştirilmiş Saat Anı
+  // Ücretsiz: günde 5 özel saat; premium: günde 12.
+  static const int freeMaxDailyNotifications = 5;
+  static const int premiumMaxDailyNotifications = 12;
   static const int notificationWindowDays = 7;
   static const int defaultQuietHoursStart = 22;
   static const int defaultQuietHoursEnd = 8;
@@ -30,6 +31,10 @@ class AppLimits {
   // Kayitli kisi (uyumluluk)
   static const int freeMaxSavedPersons = 3;
   static const int premiumMaxSavedPersons = -1;
+
+  // Kişiye özel sembolik günlük plan: ücretsiz kısa önizleme, premium tam akış.
+  static const int freeEnergyFlowPreviewSlots = 1;
+  static const int premiumEnergyFlowSlots = 3;
 
   // Isik Serisi dinlenme
   static const int streakRestDaysPerWeek = 1;
